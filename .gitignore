@@ -1,0 +1,7 @@
+# JavaScript — never commit installed packages
+node_modules/
+
+# Python — never commit virtual environment or bytecode cache
+venv/
+__pycache__/
+*.pyc
