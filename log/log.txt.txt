@@ -1,0 +1,389 @@
+PS C:\Projects\Ronen\MCP> cd .\demo1-weather-server\                             
+PS C:\Projects\Ronen\MCP\demo1-weather-server> ls
+
+    Directory: C:\Projects\Ronen\MCP\demo1-weather-server
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---          09-06-2026    23:58           1459 index.js
+-a---          09-06-2026    23:57            228 package.json
+
+PS C:\Projects\Ronen\MCP\demo1-weather-server> npm init -y
+Wrote to C:\Projects\Ronen\MCP\demo1-weather-server\package.json:
+
+{
+  "name": "demo1-weather-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  },
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
+
+
+
+PS C:\Projects\Ronen\MCP\demo1-weather-server> npm install @modelcontextprotocol/sdk zod
+
+added 92 packages, and audited 93 packages in 5s
+
+30 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+PS C:\Projects\Ronen\MCP\demo1-weather-server> cvd ..                    
+cvd: The term 'cvd' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+PS C:\Projects\Ronen\MCP\demo1-weather-server> cd ..
+PS C:\Projects\Ronen\MCP> ls
+
+    Directory: C:\Projects\Ronen\MCP
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d----          09-06-2026    23:52                .vscode
+d----          10-06-2026    00:04                demo1-weather-server
+d----          10-06-2026    00:00                demo2-nationalize-server
+
+PS C:\Projects\Ronen\MCP> cd .\demo2-nationalize-server\                         
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> ls
+
+    Directory: C:\Projects\Ronen\MCP\demo2-nationalize-server
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---          10-06-2026    00:00            469 server.py
+
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> pip install mcp requests
+pip: The term 'pip' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> c:\Projects\Ronen\MCP\.venv\Scripts\python.exe -m pip install mcp requests
+Collecting mcp
+  Downloading mcp-1.27.2-py3-none-any.whl.metadata (8.3 kB)
+Collecting requests
+  Downloading requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
+Collecting anyio>=4.5 (from mcp)
+  Using cached anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)
+Collecting httpx-sse>=0.4 (from mcp)
+  Using cached httpx_sse-0.4.3-py3-none-any.whl.metadata (9.7 kB)
+Collecting httpx<1.0.0,>=0.27.1 (from mcp)
+  Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting jsonschema>=4.20.0 (from mcp)
+  Using cached jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+Collecting pydantic-settings>=2.5.2 (from mcp)
+  Downloading pydantic_settings-2.14.1-py3-none-any.whl.metadata (3.4 kB)
+Collecting pydantic<3.0.0,>=2.11.0 (from mcp)
+  Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)
+Collecting pyjwt>=2.10.1 (from pyjwt[crypto]>=2.10.1->mcp)
+  Downloading pyjwt-2.13.0-py3-none-any.whl.metadata (3.4 kB)
+Collecting python-multipart>=0.0.9 (from mcp)
+  Downloading python_multipart-0.0.32-py3-none-any.whl.metadata (2.1 kB)
+Collecting pywin32>=310 (from mcp)
+  Downloading pywin32-312-cp314-cp314-win_amd64.whl.metadata (11 kB)
+Collecting sse-starlette>=1.6.1 (from mcp)
+  Downloading sse_starlette-3.4.4-py3-none-any.whl.metadata (15 kB)
+Collecting starlette>=0.27 (from mcp)
+  Downloading starlette-1.2.1-py3-none-any.whl.metadata (6.3 kB)
+Collecting typing-extensions>=4.9.0 (from mcp)
+  Using cached typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting typing-inspection>=0.4.1 (from mcp)
+  Using cached typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+Collecting uvicorn>=0.31.1 (from mcp)
+  Downloading uvicorn-0.49.0-py3-none-any.whl.metadata (6.7 kB)
+Collecting certifi (from httpx<1.0.0,>=0.27.1->mcp)
+  Downloading certifi-2026.5.20-py3-none-any.whl.metadata (2.5 kB)
+Collecting httpcore==1.* (from httpx<1.0.0,>=0.27.1->mcp)
+  Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting idna (from httpx<1.0.0,>=0.27.1->mcp)
+  Downloading idna-3.18-py3-none-any.whl.metadata (6.1 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx<1.0.0,>=0.27.1->mcp)
+  Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting annotated-types>=0.6.0 (from pydantic<3.0.0,>=2.11.0->mcp)
+  Using cached annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.46.4 (from pydantic<3.0.0,>=2.11.0->mcp)
+  Downloading pydantic_core-2.46.4-cp314-cp314-win_amd64.whl.metadata (6.7 kB)
+Collecting charset_normalizer<4,>=2 (from requests)
+  Downloading charset_normalizer-3.4.7-cp314-cp314-win_amd64.whl.metadata (41 kB)
+Collecting urllib3<3,>=1.26 (from requests)
+  Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)
+Collecting attrs>=22.2.0 (from jsonschema>=4.20.0->mcp)
+  Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.20.0->mcp)
+  Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+Collecting referencing>=0.28.4 (from jsonschema>=4.20.0->mcp)
+  Using cached referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+Collecting rpds-py>=0.25.0 (from jsonschema>=4.20.0->mcp)
+  Downloading rpds_py-2026.5.1-cp314-cp314-win_amd64.whl.metadata (4.2 kB)
+Collecting python-dotenv>=0.21.0 (from pydantic-settings>=2.5.2->mcp)
+  Downloading python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)
+Collecting cryptography>=3.4.0 (from pyjwt[crypto]>=2.10.1->mcp)
+  Downloading cryptography-48.0.0-cp311-abi3-win_amd64.whl.metadata (4.3 kB)
+Collecting cffi>=2.0.0 (from cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp)
+  Using cached cffi-2.0.0-cp314-cp314-win_amd64.whl.metadata (2.6 kB)
+Collecting pycparser (from cffi>=2.0.0->cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp)
+  Using cached pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+Collecting click>=7.0 (from uvicorn>=0.31.1->mcp)
+  Downloading click-8.4.1-py3-none-any.whl.metadata (2.6 kB)
+Collecting colorama (from click>=7.0->uvicorn>=0.31.1->mcp)
+  Using cached colorama-0.4.6-py2.py3-none-any.whl.metadata (17 kB)
+Downloading mcp-1.27.2-py3-none-any.whl (220 kB)
+Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)
+Downloading pydantic_core-2.46.4-cp314-cp314-win_amd64.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 7.9 MB/s  0:00:00
+Downloading requests-2.34.2-py3-none-any.whl (73 kB)
+Downloading charset_normalizer-3.4.7-cp314-cp314-win_amd64.whl (159 kB)
+Downloading idna-3.18-py3-none-any.whl (65 kB)
+Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)
+Using cached annotated_types-0.7.0-py3-none-any.whl (13 kB)
+Using cached anyio-4.13.0-py3-none-any.whl (114 kB)
+Downloading certifi-2026.5.20-py3-none-any.whl (134 kB)
+Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+Using cached httpx_sse-0.4.3-py3-none-any.whl (9.0 kB)
+Using cached jsonschema-4.26.0-py3-none-any.whl (90 kB)
+Downloading attrs-26.1.0-py3-none-any.whl (67 kB)
+Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+Downloading pydantic_settings-2.14.1-py3-none-any.whl (60 kB)
+Downloading pyjwt-2.13.0-py3-none-any.whl (31 kB)
+Downloading cryptography-48.0.0-cp311-abi3-win_amd64.whl (3.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.8/3.8 MB 7.5 MB/s  0:00:00
+Using cached cffi-2.0.0-cp314-cp314-win_amd64.whl (185 kB)
+Downloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+Downloading python_multipart-0.0.32-py3-none-any.whl (30 kB)
+Downloading pywin32-312-cp314-cp314-win_amd64.whl (7.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.0/7.0 MB 6.6 MB/s  0:00:01
+Using cached referencing-0.37.0-py3-none-any.whl (26 kB)
+Downloading rpds_py-2026.5.1-cp314-cp314-win_amd64.whl (225 kB)
+Downloading sse_starlette-3.4.4-py3-none-any.whl (16 kB)
+Downloading starlette-1.2.1-py3-none-any.whl (73 kB)
+Using cached typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+Using cached typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+Downloading uvicorn-0.49.0-py3-none-any.whl (71 kB)
+Downloading click-8.4.1-py3-none-any.whl (116 kB)
+Using cached colorama-0.4.6-py2.py3-none-any.whl (25 kB)
+Using cached pycparser-3.0-py3-none-any.whl (48 kB)
+Installing collected packages: urllib3, typing-extensions, rpds-py, pywin32, python-multipart, python-dotenv, pyjwt, pycparser, idna, httpx-sse, h11, colorama, charset_normalizer, certifi, attrs, annotated-types, typing-inspection, requests, referencing, pydantic-core, httpcore, click, cffi, anyio, uvicorn, starlette, pydantic, jsonschema-specifications, httpx, cryptography, sse-starlette, pydantic-settings, jsonschema, mcp
+Successfully installed annotated-types-0.7.0 anyio-4.13.0 attrs-26.1.0 certifi-2026.5.20 cffi-2.0.0 charset_normalizer-3.4.7 click-8.4.1 colorama-0.4.6 cryptography-48.0.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 httpx-sse-0.4.3 idna-3.18 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 mcp-1.27.2 pycparser-3.0 pydantic-2.13.4 pydantic-core-2.46.4 pydantic-settings-2.14.1 pyjwt-2.13.0 python-dotenv-1.2.2 python-multipart-0.0.32 pywin32-312 referencing-0.37.0 requests-2.34.2 rpds-py-2026.5.1 sse-starlette-3.4.4 starlette-1.2.1 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.7.0 uvicorn-0.49.0
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> pip install mcp requests      
+pip: The term 'pip' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> python -m pip install mcp requests
+Collecting mcp
+  Using cached mcp-1.27.2-py3-none-any.whl.metadata (8.3 kB)
+Collecting requests
+  Using cached requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
+Collecting anyio>=4.5 (from mcp)
+  Using cached anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)
+Collecting httpx-sse>=0.4 (from mcp)
+  Using cached httpx_sse-0.4.3-py3-none-any.whl.metadata (9.7 kB)
+Collecting httpx<1.0.0,>=0.27.1 (from mcp)
+  Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting jsonschema>=4.20.0 (from mcp)
+  Using cached jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+Collecting pydantic-settings>=2.5.2 (from mcp)
+  Using cached pydantic_settings-2.14.1-py3-none-any.whl.metadata (3.4 kB)
+Collecting pydantic<3.0.0,>=2.11.0 (from mcp)
+  Using cached pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)
+Collecting pyjwt>=2.10.1 (from pyjwt[crypto]>=2.10.1->mcp)
+  Using cached pyjwt-2.13.0-py3-none-any.whl.metadata (3.4 kB)
+Collecting python-multipart>=0.0.9 (from mcp)
+  Using cached python_multipart-0.0.32-py3-none-any.whl.metadata (2.1 kB)
+Collecting pywin32>=310 (from mcp)
+  Using cached pywin32-312-cp314-cp314-win_amd64.whl.metadata (11 kB)
+Collecting sse-starlette>=1.6.1 (from mcp)
+  Using cached sse_starlette-3.4.4-py3-none-any.whl.metadata (15 kB)
+Collecting starlette>=0.27 (from mcp)
+  Using cached starlette-1.2.1-py3-none-any.whl.metadata (6.3 kB)
+Collecting typing-extensions>=4.9.0 (from mcp)
+  Using cached typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting typing-inspection>=0.4.1 (from mcp)
+  Using cached typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+Collecting uvicorn>=0.31.1 (from mcp)
+  Using cached uvicorn-0.49.0-py3-none-any.whl.metadata (6.7 kB)
+Collecting certifi (from httpx<1.0.0,>=0.27.1->mcp)
+  Using cached certifi-2026.5.20-py3-none-any.whl.metadata (2.5 kB)
+Collecting httpcore==1.* (from httpx<1.0.0,>=0.27.1->mcp)
+  Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting idna (from httpx<1.0.0,>=0.27.1->mcp)
+  Using cached idna-3.18-py3-none-any.whl.metadata (6.1 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx<1.0.0,>=0.27.1->mcp)
+  Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting annotated-types>=0.6.0 (from pydantic<3.0.0,>=2.11.0->mcp)
+  Using cached annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.46.4 (from pydantic<3.0.0,>=2.11.0->mcp)
+  Using cached pydantic_core-2.46.4-cp314-cp314-win_amd64.whl.metadata (6.7 kB)
+Collecting charset_normalizer<4,>=2 (from requests)
+  Using cached charset_normalizer-3.4.7-cp314-cp314-win_amd64.whl.metadata (41 kB)
+Collecting urllib3<3,>=1.26 (from requests)
+  Using cached urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)
+Collecting attrs>=22.2.0 (from jsonschema>=4.20.0->mcp)
+  Using cached attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.20.0->mcp)
+  Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+Collecting referencing>=0.28.4 (from jsonschema>=4.20.0->mcp)
+  Using cached referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+Collecting rpds-py>=0.25.0 (from jsonschema>=4.20.0->mcp)
+  Using cached rpds_py-2026.5.1-cp314-cp314-win_amd64.whl.metadata (4.2 kB)
+Collecting python-dotenv>=0.21.0 (from pydantic-settings>=2.5.2->mcp)
+  Using cached python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)
+Collecting cryptography>=3.4.0 (from pyjwt[crypto]>=2.10.1->mcp)
+  Using cached cryptography-48.0.0-cp311-abi3-win_amd64.whl.metadata (4.3 kB)
+Collecting cffi>=2.0.0 (from cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp)
+  Using cached cffi-2.0.0-cp314-cp314-win_amd64.whl.metadata (2.6 kB)
+Collecting pycparser (from cffi>=2.0.0->cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp)
+  Using cached pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+Collecting click>=7.0 (from uvicorn>=0.31.1->mcp)
+  Using cached click-8.4.1-py3-none-any.whl.metadata (2.6 kB)
+Collecting colorama (from click>=7.0->uvicorn>=0.31.1->mcp)
+  Using cached colorama-0.4.6-py2.py3-none-any.whl.metadata (17 kB)
+Using cached mcp-1.27.2-py3-none-any.whl (220 kB)
+Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+Using cached pydantic-2.13.4-py3-none-any.whl (472 kB)
+Using cached pydantic_core-2.46.4-cp314-cp314-win_amd64.whl (2.1 MB)
+Using cached requests-2.34.2-py3-none-any.whl (73 kB)
+Using cached charset_normalizer-3.4.7-cp314-cp314-win_amd64.whl (159 kB)
+Using cached idna-3.18-py3-none-any.whl (65 kB)
+Using cached urllib3-2.7.0-py3-none-any.whl (131 kB)
+Using cached annotated_types-0.7.0-py3-none-any.whl (13 kB)
+Using cached anyio-4.13.0-py3-none-any.whl (114 kB)
+Using cached certifi-2026.5.20-py3-none-any.whl (134 kB)
+Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+Using cached httpx_sse-0.4.3-py3-none-any.whl (9.0 kB)
+Using cached jsonschema-4.26.0-py3-none-any.whl (90 kB)
+Using cached attrs-26.1.0-py3-none-any.whl (67 kB)
+Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+Using cached pydantic_settings-2.14.1-py3-none-any.whl (60 kB)
+Using cached pyjwt-2.13.0-py3-none-any.whl (31 kB)
+Using cached cryptography-48.0.0-cp311-abi3-win_amd64.whl (3.8 MB)
+Using cached cffi-2.0.0-cp314-cp314-win_amd64.whl (185 kB)
+Using cached python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+Using cached python_multipart-0.0.32-py3-none-any.whl (30 kB)
+Using cached pywin32-312-cp314-cp314-win_amd64.whl (7.0 MB)
+Using cached referencing-0.37.0-py3-none-any.whl (26 kB)
+Using cached rpds_py-2026.5.1-cp314-cp314-win_amd64.whl (225 kB)
+Using cached sse_starlette-3.4.4-py3-none-any.whl (16 kB)
+Using cached starlette-1.2.1-py3-none-any.whl (73 kB)
+Using cached typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+Using cached typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+Using cached uvicorn-0.49.0-py3-none-any.whl (71 kB)
+Using cached click-8.4.1-py3-none-any.whl (116 kB)
+Using cached colorama-0.4.6-py2.py3-none-any.whl (25 kB)
+Using cached pycparser-3.0-py3-none-any.whl (48 kB)
+Installing collected packages: urllib3, typing-extensions, rpds-py, pywin32, python-multipart, python-dotenv, pyjwt, pycparser, idna, httpx-sse, h11, colorama, charset_normalizer, certifi, attrs, annotated-types, typing-inspection, requests, referencing, pydantic-core, httpcore, click, cffi, anyio, uvicorn, starlette, pydantic, jsonschema-specifications, httpx, cryptography, sse-starlette, pydantic-settings, jsonschema, mcp
+Successfully installed annotated-types-0.7.0 anyio-4.13.0 attrs-26.1.0 certifi-2026.5.20 cffi-2.0.0 charset_normalizer-3.4.7 click-8.4.1 colorama-0.4.6 cryptography-48.0.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 httpx-sse-0.4.3 idna-3.18 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 mcp-1.27.2 pycparser-3.0 pydantic-2.13.4 pydantic-core-2.46.4 pydantic-settings-2.14.1 pyjwt-2.13.0 python-dotenv-1.2.2 python-multipart-0.0.32 pywin32-312 referencing-0.37.0 requests-2.34.2 rpds-py-2026.5.1 sse-starlette-3.4.4 starlette-1.2.1 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.7.0 uvicorn-0.49.0
+
+[notice] A new release of pip is available: 25.3 -> 26.1.2
+[notice] To update, run: C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\python.exe -m pip install --upgrade pip
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> which python        # macOS/Linux  (Windows: where python)      
+which: The term 'which' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> python -m pip show mcp        
+Name: mcp
+Version: 1.27.2
+Summary: Model Context Protocol SDK
+Home-page: https://modelcontextprotocol.io
+Author: Anthropic, PBC.
+Author-email: 
+License: MIT
+Location: C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages
+Requires: anyio, httpx, httpx-sse, jsonschema, pydantic, pydantic-settings, pyjwt, python-multipart, pywin32, sse-starlette, starlette, typing-extensions, typing-inspection, uvicorn
+Required-by: 
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> pip install mcp requests      
+pip: The term 'pip' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> py -m pip install mcp requests
+
+Requirement already satisfied: mcp in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (1.27.2)
+Requirement already satisfied: requests in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (2.34.2)
+Requirement already satisfied: anyio>=4.5 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (4.13.0)
+Requirement already satisfied: httpx-sse>=0.4 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (0.4.3)
+Requirement already satisfied: httpx<1.0.0,>=0.27.1 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (0.28.1)
+Requirement already satisfied: jsonschema>=4.20.0 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (4.26.0)
+Requirement already satisfied: pydantic-settings>=2.5.2 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (2.14.1)
+Requirement already satisfied: pydantic<3.0.0,>=2.11.0 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (2.13.4)
+Requirement already satisfied: pyjwt>=2.10.1 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from pyjwt[crypto]>=2.10.1->mcp) (2.13.0)
+Requirement already satisfied: python-multipart>=0.0.9 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (0.0.32)
+Requirement already satisfied: pywin32>=310 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (312)
+Requirement already satisfied: sse-starlette>=1.6.1 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (3.4.4)
+Requirement already satisfied: starlette>=0.27 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (1.2.1)
+Requirement already satisfied: typing-extensions>=4.9.0 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (4.15.0)
+Requirement already satisfied: typing-inspection>=0.4.1 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (0.4.2)
+Requirement already satisfied: uvicorn>=0.31.1 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from mcp) (0.49.0)
+Requirement already satisfied: certifi in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from httpx<1.0.0,>=0.27.1->mcp) (2026.5.20)
+Requirement already satisfied: httpcore==1.* in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from httpx<1.0.0,>=0.27.1->mcp) (1.0.9)
+Requirement already satisfied: idna in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from httpx<1.0.0,>=0.27.1->mcp) (3.18)
+Requirement already satisfied: h11>=0.16 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from httpcore==1.*->httpx<1.0.0,>=0.27.1->mcp) (0.16.0)
+Requirement already satisfied: annotated-types>=0.6.0 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from pydantic<3.0.0,>=2.11.0->mcp) (0.7.0)
+Requirement already satisfied: pydantic-core==2.46.4 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from pydantic<3.0.0,>=2.11.0->mcp) (2.46.4)
+Requirement already satisfied: charset_normalizer<4,>=2 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from requests) (3.4.7)
+Requirement already satisfied: urllib3<3,>=1.26 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from requests) (2.7.0)
+Requirement already satisfied: attrs>=22.2.0 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from jsonschema>=4.20.0->mcp) (26.1.0)
+Requirement already satisfied: jsonschema-specifications>=2023.03.6 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from jsonschema>=4.20.0->mcp) (2025.9.1)
+Requirement already satisfied: referencing>=0.28.4 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from jsonschema>=4.20.0->mcp) (0.37.0)
+Requirement already satisfied: rpds-py>=0.25.0 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from jsonschema>=4.20.0->mcp) (2026.5.1)
+Requirement already satisfied: python-dotenv>=0.21.0 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from pydantic-settings>=2.5.2->mcp) (1.2.2)
+Requirement already satisfied: cryptography>=3.4.0 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from pyjwt[crypto]>=2.10.1->mcp) (48.0.0)
+Requirement already satisfied: cffi>=2.0.0 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp) (2.0.0)
+Requirement already satisfied: pycparser in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from cffi>=2.0.0->cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp) (3.0)
+Requirement already satisfied: click>=7.0 in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from uvicorn>=0.31.1->mcp) (8.4.1)
+Requirement already satisfied: colorama in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (from click>=7.0->uvicorn>=0.31.1->mcp) (0.4.6)
+
+[notice] A new release of pip is available: 25.3 -> 26.1.2
+[notice] To update, run: C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\python.exe -m pip install --upgrade pip
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\python.exe -m pip install --upgrade pip
+Requirement already satisfied: pip in c:\users\mahesh\appdata\local\python\pythoncore-3.14-64\lib\site-packages (25.3)
+Collecting pip
+  Using cached pip-26.1.2-py3-none-any.whl.metadata (4.6 kB)
+Using cached pip-26.1.2-py3-none-any.whl (1.8 MB)
+Installing collected packages: pip
+  Attempting uninstall: pip
+    Found existing installation: pip 25.3
+    Uninstalling pip-25.3:
+      Successfully uninstalled pip-25.3
+Successfully installed pip-26.1.2
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> pip install mcp requests      
+Requirement already satisfied: mcp in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (1.27.2)
+Requirement already satisfied: requests in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (2.34.2)
+Requirement already satisfied: anyio>=4.5 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (4.13.0)
+Requirement already satisfied: httpx-sse>=0.4 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (0.4.3)
+Requirement already satisfied: httpx<1.0.0,>=0.27.1 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (0.28.1)
+Requirement already satisfied: jsonschema>=4.20.0 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (4.26.0)
+Requirement already satisfied: pydantic-settings>=2.5.2 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (2.14.1)
+Requirement already satisfied: pydantic<3.0.0,>=2.11.0 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (2.13.4)
+Requirement already satisfied: pyjwt>=2.10.1 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from pyjwt[crypto]>=2.10.1->mcp) (2.13.0)
+Requirement already satisfied: python-multipart>=0.0.9 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (0.0.32)
+Requirement already satisfied: pywin32>=310 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (312)
+Requirement already satisfied: sse-starlette>=1.6.1 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (3.4.4)
+Requirement already satisfied: starlette>=0.27 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (1.2.1)
+Requirement already satisfied: typing-extensions>=4.9.0 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (4.15.0)
+Requirement already satisfied: typing-inspection>=0.4.1 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (0.4.2)
+Requirement already satisfied: uvicorn>=0.31.1 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from mcp) (0.49.0)
+Requirement already satisfied: certifi in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from httpx<1.0.0,>=0.27.1->mcp) (2026.5.20)
+Requirement already satisfied: httpcore==1.* in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from httpx<1.0.0,>=0.27.1->mcp) (1.0.9)
+Requirement already satisfied: idna in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from httpx<1.0.0,>=0.27.1->mcp) (3.18)
+Requirement already satisfied: h11>=0.16 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from httpcore==1.*->httpx<1.0.0,>=0.27.1->mcp) (0.16.0)
+Requirement already satisfied: annotated-types>=0.6.0 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from pydantic<3.0.0,>=2.11.0->mcp) (0.7.0)
+Requirement already satisfied: pydantic-core==2.46.4 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from pydantic<3.0.0,>=2.11.0->mcp) (2.46.4)
+Requirement already satisfied: charset_normalizer<4,>=2 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from requests) (3.4.7)
+Requirement already satisfied: urllib3<3,>=1.26 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from requests) (2.7.0)
+Requirement already satisfied: attrs>=22.2.0 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from jsonschema>=4.20.0->mcp) (26.1.0)
+Requirement already satisfied: jsonschema-specifications>=2023.03.6 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from jsonschema>=4.20.0->mcp) (2025.9.1)
+Requirement already satisfied: referencing>=0.28.4 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from jsonschema>=4.20.0->mcp) (0.37.0)
+Requirement already satisfied: rpds-py>=0.25.0 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from jsonschema>=4.20.0->mcp) (2026.5.1)
+Requirement already satisfied: python-dotenv>=0.21.0 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from pydantic-settings>=2.5.2->mcp) (1.2.2)
+Requirement already satisfied: cryptography>=3.4.0 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from pyjwt[crypto]>=2.10.1->mcp) (48.0.0)
+Requirement already satisfied: cffi>=2.0.0 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp) (2.0.0)
+Requirement already satisfied: pycparser in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from cffi>=2.0.0->cryptography>=3.4.0->pyjwt[crypto]>=2.10.1->mcp) (3.0)
+Requirement already satisfied: click>=7.0 in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from uvicorn>=0.31.1->mcp) (8.4.1)
+Requirement already satisfied: colorama in C:\Users\MAHESH\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages (from click>=7.0->uvicorn>=0.31.1->mcp) (0.4.6)
+PS C:\Projects\Ronen\MCP\demo2-nationalize-server> 
