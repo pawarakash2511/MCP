@@ -729,3 +729,342 @@ Open `frontend.html` in your browser and confirm:
 - Type **"London"** in the weather card → weather result appears with green badge `✓ Weather Service (MCP · index.js)`
 - Type **"Ronen"** in the nationality card → ranked country list appears with green badge `✓ Nationalize Service (MCP · server.py)`
 - Stop one of the servers → that card shows "Could not reach server" error (proves the frontend is truly connected to your servers, not a fallback)
+
+---
+
+---
+
+# PHASE 3: LLM-Powered Chatbot — Natural Language Interface
+
+## Why Phase 3?
+
+Phase 2 gave us a working browser frontend, but it had **two separate input cards** — one for weather, one for nationality. Users had to know which box to type in.
+
+Real users don't think in boxes. They ask questions naturally:
+
+- *"Pune ka weather kya hai?"*
+- *"Can you tell me the nationality of Ronen?"*
+- *"amit name nationality"*
+- *"is it raining in delhi?"*
+
+Phase 3 solves this with two upgrades:
+
+1. **Chatbot UI** — a single conversation window instead of two separate cards
+2. **LLM intent parsing** — the user's message is sent to an LLM (Groq) that understands what they're asking and extracts the city or name automatically
+
+**Important:** The LLM is used **only** to understand the question. The actual data (weather, nationality) still comes exclusively from your MCP servers.
+
+```
+User types anything (any language, any phrasing)
+         ↓
+/parse endpoint → Groq LLM → { type: "weather", entity: "Pune" }
+         ↓
+/weather?city=Pune → your index.js → wttr.in → answer
+         ↓
+Chat bubble with ✓ Weather Service (MCP · index.js)
+```
+
+---
+
+## DEMO 6: Redesign `frontend.html` as a Chatbot
+
+Replace the two-card layout with a full-page chat window:
+
+```
+┌─────────────────────────────────────────┐
+│  🤖 MCP Chatbot        JS·3001 Py·3002  │  ← header
+├─────────────────────────────────────────┤
+│                                         │
+│   ┌─────────────────────────────────┐   │
+│   │ 👤 pune ka weather kya hai      │   │  ← user bubble (right)
+│   └─────────────────────────────────┘   │
+│  ┌──────────────────────────────────┐   │
+│  │ 🤖 The weather in Pune is...     │   │  ← bot bubble (left, plain text)
+│  │    ✓ Weather Service (MCP)       │   │
+│  └──────────────────────────────────┘   │
+│                                         │
+├─────────────────────────────────────────┤
+│  [Type anything…]             [Send ➤]  │  ← input bar (fixed at bottom)
+└─────────────────────────────────────────┘
+```
+
+**Key UI concepts:**
+- `display: flex; flex-direction: column; height: 100vh` — makes the page fill the screen
+- `.msg-row.user` → `align-self: flex-end` (right side)
+- `.msg-row.bot` → `align-self: flex-start` (left side)
+- Typing indicator (animated dots) shows while the LLM + server respond
+- `AbortController` with a 10-second timeout prevents the UI from hanging forever
+
+---
+
+## DEMO 7: Add `/parse` Endpoint to `index.js` (Groq LLM)
+
+### Why Groq?
+
+Groq (groq.com) is a free AI inference platform. Their API is **OpenAI-compatible** — you use the same `openai` npm package, just with a different `baseURL` and API key.
+
+**API key format:** starts with `gsk_` — get one free at [console.groq.com](https://console.groq.com)
+
+> ⚠️ Do not confuse Groq (groq.com, `gsk_` keys) with Grok (xAI, `xai-` keys). They are different services with different base URLs.
+
+### Step 1: Install the OpenAI SDK
+
+```powershell
+cd demo1-weather-server
+npm install openai
+```
+
+The `openai` package works with any OpenAI-compatible API — including Groq.
+
+### Step 2: Update `index.js`
+
+Add these imports and the Groq client at the top:
+
+```javascript
+import OpenAI from 'openai';
+
+// Groq client — OpenAI-compatible (gsk_ keys → api.groq.com)
+const grok = new OpenAI({
+  apiKey: process.env.GROK_API_KEY || '',
+  baseURL: 'https://api.groq.com/openai/v1',
+});
+```
+
+Add the `parseIntent` function:
+
+```javascript
+async function parseIntent(userMessage) {
+  const completion = await grok.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages: [
+      {
+        role: 'system',
+        content: `You are an intent classifier for a chatbot that handles weather and nationality queries.
+Given the user message, respond with ONLY valid JSON — no markdown, no explanation, no extra text.
+Format: {"type":"weather"|"nationality"|"unknown","entity":"<extracted value or empty string>"}
+Rules:
+- "weather"     → user asking about weather, temperature, climate, forecast of a city/place
+- "nationality" → user asking about nationality, origin, country of a person's name
+- "unknown"     → anything else
+- entity: extract only the city name or person name, nothing else`,
+      },
+      { role: 'user', content: userMessage },
+    ],
+    temperature: 0,
+  });
+  const raw = completion.choices[0].message.content.trim();
+  return JSON.parse(raw);
+}
+```
+
+Add the `/parse` route inside the existing HTTP server (alongside `/weather`):
+
+```javascript
+if (pathname === '/parse') {
+  const q = searchParams.get('q') || '';
+  if (!q) {
+    res.writeHead(400);
+    return res.end(JSON.stringify({ error: 'q parameter required' }));
+  }
+  const intent = await parseIntent(q);
+  return res.end(JSON.stringify(intent));
+}
+```
+
+**Why `temperature: 0`?** We want deterministic output — always the same JSON structure for the same input. Higher temperatures add randomness, which would cause unpredictable JSON that might fail to parse.
+
+**Why one `/parse` endpoint for both weather AND nationality?** The LLM classifies the intent and extracts the entity. The frontend then routes to `:3001/weather` or `:3002/nationality` based on the result. One classifier, two data sources — clean separation of concerns.
+
+### Step 3: Set the API key in `mcp.json`
+
+Add an `env` block to the weather server entry so VSCode passes the key automatically:
+
+```json
+{
+  "servers": {
+    "weather": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/demo1-weather-server/index.js"],
+      "env": {
+        "GROK_API_KEY": "gsk_your_key_here"
+      }
+    },
+    "nationalize": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/demo2-nationalize-server/venv/Scripts/python",
+      "args": ["${workspaceFolder}/demo2-nationalize-server/server.py"]
+    }
+  }
+}
+```
+
+**Why `env` in `mcp.json`?** When VSCode spawns the server process, it doesn't inherit your terminal's environment variables. The `env` block injects them into the child process directly.
+
+### Step 4: Update `frontend.html`
+
+Replace the regex-based `parseIntent` function with an async fetch to the new endpoint:
+
+```javascript
+async function parseIntent(message) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  try {
+    const res = await fetch(
+      `http://localhost:3001/parse?q=${encodeURIComponent(message)}`,
+      { signal: controller.signal }
+    );
+    return res.json(); // { type: "weather", entity: "Pune" }
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+```
+
+The `handleSend` function now awaits `parseIntent` before deciding which server to call:
+
+```javascript
+async function handleSend() {
+  const text = input.value.trim();
+  addMessage('user', text);           // show user bubble
+  addTyping();                        // show loading dots
+
+  const { type, entity } = await parseIntent(text);  // Groq classifies
+
+  if (type === 'weather') {
+    const data = await getWeather(entity);      // your MCP :3001
+    addMessage('bot', renderWeather(data));
+  } else if (type === 'nationality') {
+    const data = await getNationality(entity);  // your MCP :3002
+    addMessage('bot', renderNationality(entity, data));
+  } else {
+    addMessage('bot', 'Sorry, MCP is not configured for that information.');
+  }
+}
+```
+
+Responses are plain conversational text — no cards or charts:
+
+```javascript
+// Weather → plain sentence from server
+function renderWeather(data) {
+  return data.text;  // "The weather in Pune is Sunny, 34°C..."
+}
+
+// Nationality → natural sentence built from country list
+function renderNationality(name, data) {
+  const parts = data.country.map((c, i) =>
+    i === 0
+      ? `most likely from ${flag(c.country_id)} ${country(c.country_id)} (${pct(c.probability)}%)`
+      : `${flag(c.country_id)} ${country(c.country_id)} (${pct(c.probability)}%)`
+  );
+  return `The name ${name} is ${parts[0]}, followed by ${parts.slice(1).join(', ')}.`;
+}
+```
+
+---
+
+## How to Run Phase 3
+
+### Step 1: Get a Groq API key
+1. Go to [console.groq.com](https://console.groq.com)
+2. Sign up (free) → API Keys → Create API Key
+3. Copy the key (starts with `gsk_`)
+
+### Step 2: Add the key to `mcp.json`
+Paste your key into `.vscode/mcp.json` under the `weather` server's `env` block (see DEMO 7 Step 3).
+
+### Step 3: Restart the servers
+
+**Via VSCode (recommended):**
+- `Ctrl+Shift+P` → `Developer: Reload Window`
+- VSCode re-reads `mcp.json` and respawns both servers with the env var set
+
+**Via manual terminal:**
+```powershell
+# Terminal 1
+cd demo1-weather-server
+$env:GROK_API_KEY = "gsk_your_key_here"
+node index.js
+# → "HTTP server on :3001"
+
+# Terminal 2
+cd demo2-nationalize-server
+venv\Scripts\Activate.ps1
+python server.py
+# → "HTTP server on :3002"
+```
+
+### Step 4: Open the chatbot
+Double-click `frontend.html` — the chat window opens.
+
+---
+
+## Full Command Sequence — Phase 3
+
+```powershell
+# === Step 1: Install Groq/OpenAI SDK ===
+cd demo1-weather-server
+npm install openai
+cd ..
+
+# === Step 2: Update index.js ===
+# Add: import OpenAI, Groq client init, parseIntent() function, /parse route
+# (see DEMO 7 Step 2 above for full code)
+
+# === Step 3: Rewrite frontend.html ===
+# Replace two-card layout with chatbot UI
+# Replace regex parseIntent() with async fetch to /parse
+# (see DEMO 6 and DEMO 7 Step 4 above)
+
+# === Step 4: Add API key to mcp.json ===
+# Add "env": { "GROK_API_KEY": "gsk_..." } to weather server entry
+
+# === Step 5: Restart ===
+# Option A (VSCode): Ctrl+Shift+P → Developer: Reload Window
+# Option B (manual):
+cd demo1-weather-server
+$env:GROK_API_KEY = "gsk_your_key_here"
+node index.js                          # → HTTP server on :3001
+
+# (new terminal)
+cd demo2-nationalize-server
+venv\Scripts\Activate.ps1
+python server.py                       # → HTTP server on :3002
+
+# Open frontend.html in browser
+```
+
+---
+
+## Phase 3 Concepts
+
+| Concept | One-liner |
+|---------|-----------|
+| LLM intent classification | Use an LLM to understand what the user is asking — no regex, any language, any phrasing |
+| Groq API | Free OpenAI-compatible inference platform — same SDK, different `baseURL` |
+| `openai` npm package | Works with OpenAI AND any OpenAI-compatible API (Groq, xAI, Azure, etc.) |
+| `baseURL` override | Redirect OpenAI SDK to a different provider's endpoint |
+| `temperature: 0` | Makes LLM output deterministic — critical when you need predictable JSON |
+| `process.env.GROK_API_KEY` | Read API key from environment variable — never hardcode secrets in source code |
+| `env` in `mcp.json` | Inject environment variables into a server process spawned by VSCode |
+| `AbortController` + timeout | Cancel a hanging `fetch()` after N seconds — prevents the UI from freezing |
+| Separation of concerns | LLM understands language; MCP servers own the data — each layer does one job |
+
+---
+
+## Phase 3 Verification
+
+Open `frontend.html` and test these inputs — all should return answers without knowing which server handles what:
+
+| What you type | Expected response |
+|---|---|
+| `pune ka weather` | Weather for Pune from `:3001` |
+| `can you tell me weather of delhi` | Weather for Delhi from `:3001` |
+| `what is nationality of Ronen` | Nationality of Ronen from `:3002` |
+| `amit name nationality` | Nationality of Amit from `:3002` |
+| `is it raining in Mumbai?` | Weather for Mumbai from `:3001` |
+| `where is Sara from?` | Nationality of Sara from `:3002` |
+| `tell me a joke` | "Sorry, MCP is not configured for that information." |
+
+Every weather and nationality answer ends with a green `✓` MCP source badge proving the data came from your server, not the LLM.

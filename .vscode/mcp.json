@@ -3,7 +3,10 @@
     "weather": {
       "type": "stdio",
       "command": "node",
-      "args": ["${workspaceFolder}/demo1-weather-server/index.js"]
+      "args": ["${workspaceFolder}/demo1-weather-server/index.js"],
+      "env": {
+        "GROK_API_KEY": "gsk_your_key_here"
+      }
     },
     "nationalize": {
       "type": "stdio",

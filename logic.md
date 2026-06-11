@@ -18,17 +18,19 @@ There are three separate worlds in this project. Each speaks a different languag
                            │  MCP JSON messages
 ┌──────────────────────────▼──────────────────────────────────────┐
 │  WORLD 2: Your Custom MCP Servers (your code)                   │
-│  index.js  (Node.js)   →  getWeather tool                       │
+│  index.js  (Node.js)   →  getWeather tool + /parse endpoint     │
 │  server.py (Python)    →  predict_nationality tool              │
 │  Lives on your machine. Executes your business logic.           │
 │  Speaks: MCP over stdio (to Claude) + HTTP (to browser)         │
 └──────────┬──────────────────────────────────┬───────────────────┘
-           │  HTTP (fetch to external APIs)    │  HTTP (from browser)
+           │  HTTP (fetch to external APIs     │  HTTP (from browser)
+           │  + Groq API for intent parsing)   │
 ┌──────────▼───────────┐           ┌───────────▼──────────────────┐
 │  WORLD 3A: External  │           │  WORLD 3B: Browser           │
-│  APIs                │           │  frontend.html               │
+│  APIs                │           │  frontend.html (chatbot UI)  │
 │  wttr.in             │           │  Speaks: HTTP to localhost   │
 │  api.nationalize.io  │           └──────────────────────────────┘
+│  api.groq.com        │
 └──────────────────────┘
 ```
 
@@ -176,7 +178,10 @@ Writing to `stdout` for logs would corrupt the protocol — Claude would try to 
     "weather": {
       "type": "stdio",
       "command": "node",
-      "args": ["${workspaceFolder}/demo1-weather-server/index.js"]
+      "args": ["${workspaceFolder}/demo1-weather-server/index.js"],
+      "env": {
+        "GROK_API_KEY": "gsk_your_key_here"
+      }
     },
     "nationalize": {
       "type": "stdio",
@@ -197,6 +202,9 @@ When VSCode loads this file, it does the following for each entry:
 
 `${workspaceFolder}` is a VSCode variable that resolves to the folder you opened — in your case `D:\UPWORK\Github_project\MCP`.
 
+**Why `env` in `mcp.json`?**
+VSCode spawns your server as a child process. That child process does **not** inherit your terminal's environment variables — it starts with a clean environment. The `env` block injects variables directly into the spawned process. This is how `GROK_API_KEY` reaches `index.js` without you having to set it in every terminal session.
+
 **Why the venv path for Python?**
 ```
 "command": "${workspaceFolder}/demo2-nationalize-server/venv/Scripts/python"
@@ -214,10 +222,17 @@ VSCode does not activate your venv before running the command. If you used the g
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import OpenAI from 'openai';  // also used for Groq (OpenAI-compatible)
 
 // 2. Import built-ins (no npm install needed)
 import http from 'http';
 import { URL } from 'url';
+
+// 3. Groq client — same OpenAI SDK, different baseURL
+const grok = new OpenAI({
+  apiKey: process.env.GROK_API_KEY || '',
+  baseURL: 'https://api.groq.com/openai/v1',
+});
 ```
 
 ### The McpServer object
@@ -349,37 +364,42 @@ Step 10 You see: "The weather in Tokyo is Partly Cloudy, 22°C (feels like 20°C
 
 ---
 
-## 9. End-to-End Flow: Browser Path
+## 9. End-to-End Flow: Browser Path (Phase 3 Chatbot)
 
-**You type "Tokyo" in the weather card and click Ask**
+**User types:** *"pune ka weather kya hai"* — any phrasing, any language
 
 ```
-Step 1  User types "Tokyo" in frontend.html and clicks Ask
+Step 1  User types in the chatbot input and presses Send
         ↓
-Step 2  JavaScript runs:
-        fetch("http://localhost:3001/weather?city=Tokyo")
+Step 2  frontend.html calls the /parse endpoint:
+        fetch("http://localhost:3001/parse?q=pune ka weather kya hai")
         ↓
-Step 3  Browser sends HTTP GET to localhost:3001
+Step 3  index.js receives the request, calls Groq LLM:
+        POST https://api.groq.com/openai/v1/chat/completions
+        { model: "llama-3.3-70b-versatile", messages: [system prompt + user message], temperature: 0 }
         ↓
-Step 4  Node's http.createServer handler receives the request
-        Parses URL: pathname="/weather", searchParams.city="Tokyo"
+Step 4  Groq LLM returns:
+        { "type": "weather", "entity": "pune" }
+        index.js parses the JSON and sends it back to the browser
         ↓
-Step 5  getWeather("Tokyo") runs (same function as the Claude path)
-        → fetch("https://wttr.in/Tokyo?format=j1")
-        → formats the result
+Step 5  Browser sees type="weather", calls the weather endpoint:
+        fetch("http://localhost:3001/weather?city=pune")
         ↓
-Step 6  HTTP handler returns:
-        {"text":"The weather in Tokyo is...","server":"Weather Service (MCP · index.js)"}
+Step 6  Node's HTTP handler calls getWeather("pune")
+        → fetch("https://wttr.in/pune?format=j1")
+        → formats the result string
+        ↓
+Step 7  HTTP handler returns:
+        {"text":"The weather in Pune is Sunny, 34°C...","server":"Weather Service (MCP · index.js)"}
         with header: Access-Control-Allow-Origin: *
         ↓
-Step 7  Browser receives the JSON
-        JavaScript parses it, renders the weather card
-        Displays the green badge: ✓ Weather Service (MCP · index.js)
-        ↓
-Step 8  User sees the weather result on the page
+Step 8  Browser renders a bot chat bubble with the weather text
+        + green badge: ✓ Weather Service (MCP · index.js)
 ```
 
-**Claude is NOT involved in the browser path.** The LLM plays no role. The browser calls your server directly over HTTP. Your server calls the external API directly. No Anthropic cloud involved.
+**Groq is used only as a router** — it understands the question and extracts the entity. The actual weather data comes from your `index.js` → wttr.in. Groq never sees or returns weather data.
+
+**Claude (Anthropic) is NOT involved in the browser path.** The chatbot uses Groq for intent classification, not Claude.
 
 ---
 
@@ -404,7 +424,60 @@ The `getWeather(city)` function doesn't know or care who called it — Claude or
 
 ---
 
-## 11. How the "MCP Source" Badge Proves Your Server Handled It
+## 11. Phase 3: LLM Intent Parsing with Groq
+
+### Why Groq instead of regex?
+
+Phase 2's frontend used regex to detect keywords like "weather" or "nationality". Regex breaks the moment a user rephrases:
+
+- `"pune ka weather kya hai"` → regex misses it (no English keyword)
+- `"where is Ronen from?"` → regex misses "nationality"
+
+Groq solves this with a real LLM that understands language, not patterns.
+
+### How Groq works in this project
+
+Groq (groq.com) is an AI inference platform. Their API is **OpenAI-compatible** — same SDK, different `baseURL` and API key format (`gsk_`).
+
+```javascript
+const grok = new OpenAI({
+  apiKey: process.env.GROK_API_KEY,
+  baseURL: 'https://api.groq.com/openai/v1',  // NOT api.x.ai (that's xAI Grok)
+});
+```
+
+The `/parse` endpoint sends any user message to Groq with a tightly constrained system prompt:
+
+```
+You are an intent classifier. Respond with ONLY valid JSON:
+{"type":"weather"|"nationality"|"unknown","entity":"<city or name>"}
+```
+
+`temperature: 0` makes the output deterministic — same input always produces the same JSON structure.
+
+### The parse → route pattern
+
+```
+User: "amit ka nationality kya hai"
+         ↓
+/parse → Groq → { "type": "nationality", "entity": "amit" }
+         ↓
+frontend calls :3002/nationality?name=amit
+         ↓
+server.py → api.nationalize.io → ranked country list
+         ↓
+bot bubble: "The name amit is most likely from 🇮🇳 India (85%)..."
+```
+
+The `/parse` endpoint lives in `index.js` (not `server.py`) because it is a **shared router** — it handles intent classification for both weather and nationality, then the frontend decides which server to call.
+
+### Why not put Groq in server.py as well?
+
+`server.py` only ever receives a clean name string like `"amit"` — the frontend has already extracted it via Groq before calling `:3002`. There is no ambiguity left for server.py to resolve. One classifier, two data sources.
+
+---
+
+## 12. How the "MCP Source" Badge Proves Your Server Handled It
 
 Every HTTP response from your server includes a `server` field injected by your own code:
 
@@ -424,48 +497,51 @@ If the servers are not running, the `fetch()` in the browser fails immediately w
 
 ---
 
-## 12. File-by-File Reference
+## 13. File-by-File Reference
 
 | File | What it is | What it does |
 |------|-----------|-------------|
-| `.vscode/mcp.json` | VSCode config | Tells VSCode which servers to spawn and how |
-| `demo1-weather-server/index.js` | JS MCP server | Registers `getWeather` tool; runs HTTP on :3001; connects to stdio |
-| `demo1-weather-server/package.json` | Node config | `"type":"module"` enables ES Module imports; lists SDK + Zod deps |
+| `.vscode/mcp.json` | VSCode config | Spawns both servers; injects `GROK_API_KEY` env var into the weather server |
+| `demo1-weather-server/index.js` | JS MCP server | Registers `getWeather` tool; `/parse` endpoint (Groq intent); HTTP on :3001; stdio |
+| `demo1-weather-server/package.json` | Node config | `"type":"module"` enables ES imports; lists MCP SDK + Zod + openai deps |
 | `demo2-nationalize-server/server.py` | Python MCP server | Registers `predict_nationality` tool; runs HTTP on :3002 in a thread |
 | `demo2-nationalize-server/venv/` | Python venv | Isolated Python environment with `mcp` and `requests` installed |
-| `frontend.html` | Browser UI | Two input cards; calls localhost:3001 and :3002 over HTTP; displays results |
+| `frontend.html` | Browser chatbot | Single chat window; calls `/parse` → routes to `:3001/weather` or `:3002/nationality` |
 
 ---
 
-## 13. What Runs Where
+## 14. What Runs Where
 
 | Component | Runs on | Started by |
 |-----------|---------|-----------|
 | Claude LLM | Anthropic cloud | Anthropic (always on) |
+| Groq LLM | Groq cloud | Called by your index.js `/parse` endpoint |
 | VSCode + Claude extension | Your machine | You |
 | `node index.js` | Your machine | VSCode via mcp.json (or manually) |
 | `python server.py` | Your machine | VSCode via mcp.json (or manually) |
 | `frontend.html` JS | Your browser | You (open the file) |
 | wttr.in API | wttr.in servers | Called by your index.js |
 | api.nationalize.io | nationalize.io servers | Called by your server.py |
+| api.groq.com | Groq servers | Called by your index.js `/parse` handler |
 
 ---
 
-## 14. What Each Layer "Knows"
+## 15. What Each Layer "Knows"
 
 | Layer | Knows about |
 |-------|-------------|
 | Claude (LLM) | Tool names, descriptions, schemas — NOT your code |
+| Groq (LLM) | User's intent + entity — NOT weather data, NOT nationality data |
 | MCP SDK (`McpServer`, `FastMCP`) | How to parse JSON-RPC, route calls, format responses — NOT your business logic |
-| Your handler (`getWeather`, `predict_nationality`) | How to call the external API — NOT MCP, NOT Claude |
-| External APIs (wttr.in, nationalize.io) | Weather/nationality data — NOT MCP, NOT Claude, NOT your code |
-| `frontend.html` | localhost HTTP endpoints — NOT MCP, NOT Claude |
+| Your handler (`getWeather`, `predict_nationality`) | How to call the external API — NOT MCP, NOT Claude, NOT Groq |
+| External APIs (wttr.in, nationalize.io) | Weather/nationality data — NOT MCP, NOT any LLM, NOT your code |
+| `frontend.html` | localhost HTTP endpoints — NOT MCP, NOT Claude; uses Groq via `/parse` only for routing |
 
 Each layer has one job. None of them need to know how the others work internally. This is the power of the MCP standard — you swap any layer without touching the others.
 
 ---
 
-## 15. Summary: The Complete Request Lifecycle
+## 16. Summary: The Complete Request Lifecycle
 
 ```
 USER PROMPT (Claude path)
@@ -477,13 +553,21 @@ You (VSCode chat)
         → getWeather("Tokyo") calls wttr.in
           → result flows back: code → MCP SDK → stdout → VSCode → Claude → you
 
-BROWSER REQUEST (frontend path)
-────────────────────────────────
-You (frontend.html)
-  → fetch("http://localhost:3001/weather?city=Tokyo")
-    → Node http server parses URL
-      → getWeather("Tokyo") calls wttr.in
-        → result flows back: code → JSON → HTTP response → browser → you
+BROWSER CHATBOT (Phase 3 path)
+───────────────────────────────
+You type: "pune ka weather kya hai" (frontend.html)
+  → fetch("/parse?q=pune ka weather kya hai")  → index.js → Groq LLM
+    → { type: "weather", entity: "pune" }
+      → fetch("/weather?city=pune")  → index.js → wttr.in
+        → { text: "The weather in Pune is...", server: "Weather Service (MCP · index.js)" }
+          → chat bubble + ✓ MCP badge → you
+
+You type: "what is nationality of Ronen"
+  → fetch("/parse?q=...")  → index.js → Groq LLM
+    → { type: "nationality", entity: "Ronen" }
+      → fetch(":3002/nationality?name=Ronen")  → server.py → api.nationalize.io
+        → { country: [...], server: "Nationalize Service (MCP · server.py)" }
+          → chat bubble + ✓ MCP badge → you
 ```
 
-The LLM is involved **only** in the Claude path. The browser path is pure HTTP — no AI, no cloud, no protocol overhead. Both paths execute the exact same business logic function.
+**Groq** is involved only as a language router — it understands the question and extracts the entity. **Your MCP servers** own all the data. **Claude (Anthropic)** is not involved in the browser path at all.

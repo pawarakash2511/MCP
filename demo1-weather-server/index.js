@@ -3,6 +3,13 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'; // for schema validation
 import http from 'http';
 import { URL } from 'url';
+import OpenAI from 'openai';
+
+/* Groq client — OpenAI-compatible API (gsk_ keys → api.groq.com) */
+const grok = new OpenAI({
+  apiKey: process.env.GROK_API_KEY || '',
+  baseURL: 'https://api.groq.com/openai/v1',
+});
 
 /* 1 - Initialization */
 const server = new McpServer({
@@ -40,6 +47,30 @@ server.tool(
   }
 );
 
+/* Grok intent parser — understands any natural language query */
+async function parseIntent(userMessage) {
+  const completion = await grok.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages: [
+      {
+        role: 'system',
+        content: `You are an intent classifier for a chatbot that handles weather and nationality queries.
+Given the user message, respond with ONLY valid JSON — no markdown, no explanation, no extra text.
+Format: {"type":"weather"|"nationality"|"unknown","entity":"<extracted value or empty string>"}
+Rules:
+- "weather"     → user is asking about weather, temperature, climate, forecast, rain, humidity of a city/place
+- "nationality" → user is asking about nationality, origin, country, ethnicity of a person's name
+- "unknown"     → anything else
+- entity: extract only the city name (for weather) or person name (for nationality), nothing else`,
+      },
+      { role: 'user', content: userMessage },
+    ],
+    temperature: 0,
+  });
+  const raw = completion.choices[0].message.content.trim();
+  return JSON.parse(raw);
+}
+
 /* 4 - HTTP server on port 3001 for the browser frontend */
 http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -47,6 +78,17 @@ http.createServer(async (req, res) => {
 
   try {
     const { pathname, searchParams } = new URL(req.url, 'http://localhost');
+
+    if (pathname === '/parse') {
+      const q = searchParams.get('q') || '';
+      if (!q) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'q parameter required' }));
+      }
+      const intent = await parseIntent(q);
+      return res.end(JSON.stringify(intent));
+    }
+
     if (pathname === '/weather') {
       const city = searchParams.get('city') || '';
       if (city.length < 2) {

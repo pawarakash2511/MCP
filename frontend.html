@@ -128,37 +128,10 @@
       40%            { transform: translateY(-6px); }
     }
 
-    /* ── Weather result (inside bubble) ── */
-    .weather-card {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      border-radius: 10px;
-      padding: 16px;
-      color: #fff;
-      margin-top: 6px;
-    }
-    .weather-city { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; }
-    .weather-desc { font-size: 0.88rem; opacity: 0.7; margin-bottom: 12px; }
-    .weather-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-    .stat { background: rgba(255,255,255,0.09); border-radius: 8px; padding: 9px 6px; text-align: center; }
-    .stat-value { font-size: 1.1rem; font-weight: 700; }
-    .stat-label { font-size: 0.65rem; opacity: 0.55; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
-
-    /* ── Nationality result (inside bubble) ── */
-    .country-list { display: flex; flex-direction: column; gap: 7px; margin-top: 6px; }
-    .country-row {
-      display: flex; align-items: center; gap: 10px;
-      padding: 7px 11px; background: #f8f9fa; border-radius: 8px;
-    }
-    .country-flag { font-size: 1.3rem; }
-    .country-name { flex: 1; font-size: 0.88rem; font-weight: 500; color: #333; }
-    .prob-bar-wrap { width: 70px; height: 5px; background: #e5e5e5; border-radius: 999px; overflow: hidden; }
-    .prob-bar { height: 100%; background: linear-gradient(90deg,#e94560,#ff7597); border-radius: 999px; }
-    .country-prob { font-size: 0.82rem; font-weight: 700; color: #e94560; min-width: 32px; text-align: right; }
-
     /* ── MCP source badge ── */
     .mcp-source {
       display: inline-flex; align-items: center; gap: 5px;
-      margin-top: 10px; font-size: 0.72rem; color: #555;
+      margin-top: 8px; font-size: 0.72rem; color: #555;
       background: #eef6ee; border: 1px solid #b7ddb7;
       border-radius: 999px; padding: 2px 9px;
     }
@@ -241,83 +214,18 @@
   }
 
   /* ─────────────────────────────────────────────
-     Intent parser — no external libraries
+     Intent parser — calls Grok LLM via /parse endpoint on the MCP server
      Returns { type: 'weather'|'nationality'|'unknown', entity: string }
   ───────────────────────────────────────────── */
-  function parseIntent(raw) {
-    const m = raw.toLowerCase().trim()
-      .replace(/[?!.,]+$/, '')        // strip trailing punctuation
-      .replace(/\s+/g, ' ');          // normalise whitespace
-
-    /* ── Weather patterns ── */
-    const weatherRules = [
-      // "weather in/of/for/at pune"
-      /\bweather\s+(?:in|of|for|at|around)\s+(.+)/,
-      // "what's/what is the weather in pune"
-      /\bwhat(?:'?s| is)(?: the)?\s+weather\s+(?:in|of|for|at|around)\s+(.+)/,
-      // "how's/how is the weather in pune"
-      /\bhow(?:'?s| is)(?: the)?\s+weather\s+(?:in|of|for|at|around)\s+(.+)/,
-      // "can you tell me weather of pune" / "tell me weather of pune"
-      /\b(?:can you\s+)?(?:tell|show|check|get)(?: me)?(?: the)?\s+weather\s+(?:in|of|for|at|around)\s+(.+)/,
-      // "temperature/temp in pune"
-      /\b(?:temperature|temp)\s+(?:in|of|for|at|around)\s+(.+)/,
-      // "what is temperature of pune"
-      /\bwhat(?:'?s| is)(?: the)?\s+(?:temperature|temp)\s+(?:in|of|for|at|around)\s+(.+)/,
-      // "is it raining in pune" / "forecast for pune" / "climate in pune"
-      /\b(?:is it (?:raining|snowing|hot|cold)|forecast|climate|humidity)\s+(?:in|of|for|at|around)\s+(.+)/,
-      // "pune weather" / "pune ka weather" / "pune city weather"
-      /\b(.+?)\s+(?:ka\s+)?(?:weather|temperature|temp|forecast|climate)\b/,
-    ];
-
-    for (const re of weatherRules) {
-      const match = m.match(re);
-      if (match && match[1] && match[1].trim().length > 1) {
-        return { type: 'weather', entity: cleanEntity(match[1]) };
-      }
+  async function parseIntent(message) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    try {
+      const res = await fetch(`http://localhost:3001/parse?q=${encodeURIComponent(message)}`, { signal: controller.signal });
+      return res.json();
+    } finally {
+      clearTimeout(timeout);
     }
-
-    /* ── Nationality patterns ── */
-    const nationalityRules = [
-      // "nationality of amit" / "nationality for amit"
-      /\bnationality\s+(?:of|for)\s+(.+)/,
-      // "what is/what's the nationality of amit"
-      /\bwhat(?:'?s| is)(?: the)?\s+nationality\s+(?:of|for)\s+(.+)/,
-      // "what nationality is amit"
-      /\bwhat\s+nationality\s+is\s+(.+)/,
-      // "origin of amit"
-      /\borigin\s+(?:of|for)\s+(.+)/,
-      // "what is the origin of amit"
-      /\bwhat(?:'?s| is)(?: the)?\s+origin\s+(?:of|for)\s+(.+)/,
-      // "where is amit from" / "where does amit come from"
-      /\bwhere\s+(?:is|are|does)\s+(.+?)\s+(?:from|come from|belong)/,
-      // "which country is amit from"
-      /\bwhich\s+country\s+(?:is|does)\s+(.+?)\s+(?:from|belong|come)/,
-      // "predict nationality of amit"
-      /\bpredict\s+(?:the\s+)?nationality\s+(?:of|for)\s+(.+)/,
-      // "amit's nationality"
-      /\b(.+?)(?:'s|s')\s+nationality/,
-      // "amit name nationality" / "amit nationality"
-      /\b(.+?)\s+(?:name\s+)?nationality\b/,
-      // "amit name origin" / "amit origin"
-      /\b(.+?)\s+(?:name\s+)?origin\b/,
-    ];
-
-    for (const re of nationalityRules) {
-      const match = m.match(re);
-      if (match && match[1] && match[1].trim().length > 1) {
-        return { type: 'nationality', entity: cleanEntity(match[1]) };
-      }
-    }
-
-    return { type: 'unknown', entity: '' };
-  }
-
-  // Strip filler words left over after extraction
-  function cleanEntity(raw) {
-    return raw.trim()
-      .replace(/^(?:the|a|an|this|that|some)\s+/i, '')
-      .replace(/\s+(?:please|pls|thanks|name)$/i, '')
-      .trim();
   }
 
   /* ─────────────────────────────────────────────
@@ -378,50 +286,30 @@
   /* ─────────────────────────────────────────────
      Render results into bubble HTML strings
   ───────────────────────────────────────────── */
-  function renderWeather(city, data) {
-    const text = data.text || '';
-    const tempMatch = text.match(/(\d+)°C \(feels like (-?\d+)°C\)/);
-    const humMatch  = text.match(/humidity (\d+)%/);
-    const descMatch = text.match(/is (.+?),/);
-    return `
-      <div class="weather-card">
-        <div class="weather-city">${escHtml(city)}</div>
-        <div class="weather-desc">${descMatch ? escHtml(descMatch[1]) : ''}</div>
-        <div class="weather-stats">
-          <div class="stat">
-            <div class="stat-value">${tempMatch ? tempMatch[1] : '--'}°C</div>
-            <div class="stat-label">Temperature</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value">${tempMatch ? tempMatch[2] : '--'}°C</div>
-            <div class="stat-label">Feels Like</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value">${humMatch ? humMatch[1] : '--'}%</div>
-            <div class="stat-label">Humidity</div>
-          </div>
-        </div>
-      </div>
-      ${data.server ? `<div><span class="mcp-source">${escHtml(data.server)}</span></div>` : ''}`;
+  function renderWeather(data) {
+    const text = escHtml(data.text || 'No weather data available.');
+    const badge = data.server ? `<br><span class="mcp-source">${escHtml(data.server)}</span>` : '';
+    return text + badge;
   }
 
   function renderNationality(name, data) {
     const countries = data.country || [];
-    if (!countries.length) return `<p>No nationality predictions found for <strong>${escHtml(name)}</strong>.</p>`;
-    const rows = countries.map(c => {
+    if (!countries.length) {
+      return `No nationality predictions found for <strong>${escHtml(name)}</strong>.`;
+    }
+    // Build a natural sentence: "Amit is most likely from India (85%), Pakistan (8%), Bangladesh (4%)."
+    const parts = countries.map((c, i) => {
       const prob = Math.round(c.probability * 100);
-      return `
-        <div class="country-row">
-          <span class="country-flag">${flagEmoji(c.country_id)}</span>
-          <span class="country-name">${escHtml(countryName(c.country_id))}</span>
-          <div class="prob-bar-wrap"><div class="prob-bar" style="width:${prob}%"></div></div>
-          <span class="country-prob">${prob}%</span>
-        </div>`;
-    }).join('');
-    return `
-      <div style="font-size:0.85rem;color:#666;margin-bottom:6px;">Nationality prediction for <strong>${escHtml(name)}</strong>:</div>
-      <div class="country-list">${rows}</div>
-      ${data.server ? `<div><span class="mcp-source">${escHtml(data.server)}</span></div>` : ''}`;
+      const nation = escHtml(countryName(c.country_id));
+      const flag = flagEmoji(c.country_id);
+      return i === 0
+        ? `most likely from ${flag} ${nation} (${prob}%)`
+        : `${flag} ${nation} (${prob}%)`;
+    });
+    const sentence = `The name <strong>${escHtml(name)}</strong> is ${parts[0]}` +
+      (parts.length > 1 ? `, followed by ${parts.slice(1).join(', ')}` : '') + '.';
+    const badge = data.server ? `<br><span class="mcp-source">${escHtml(data.server)}</span>` : '';
+    return sentence + badge;
   }
 
   function escHtml(s) {
@@ -443,11 +331,11 @@
     // Show user message
     addMessage('user', escHtml(text));
 
-    // Parse intent
-    const { type, entity } = parseIntent(text);
-
-    // Show typing indicator
+    // Show typing indicator while Grok + MCP servers respond
     addTyping();
+
+    // Parse intent via Grok LLM
+    const { type, entity } = await parseIntent(text);
 
     try {
       if (type === 'weather') {
@@ -456,7 +344,7 @@
         if (data.error) {
           addMessage('bot', `<strong>Could not fetch weather.</strong><br><small>${escHtml(data.error)}</small>`, 'error');
         } else {
-          addMessage('bot', renderWeather(entity, data));
+          addMessage('bot', renderWeather(data));
         }
 
       } else if (type === 'nationality') {
