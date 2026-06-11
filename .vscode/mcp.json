@@ -1,13 +1,13 @@
 {
   "servers": {
-  "weather": {
-    "type": "stdio",
-    "command": "node",
-    "args": ["${workspaceFolder}/demo1-weather-server/index.js"]
-  },
+    "weather": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/demo1-weather-server/index.js"]
+    },
     "nationalize": {
       "type": "stdio",
-      "command": "python",
+      "command": "${workspaceFolder}/demo2-nationalize-server/venv/Scripts/python",
       "args": ["${workspaceFolder}/demo2-nationalize-server/server.py"]
     }
   }

@@ -371,3 +371,361 @@ After setup, open Claude in VSCode and ask:
 - *"What nationality is the name Ronen?"* → should trigger `predict_nationality`
 
 Both should return real data from the external APIs.
+
+---
+
+---
+
+# PHASE 2: Browser Frontend — Connect Your MCP Servers to a Web Page
+
+## Why do we need a frontend?
+
+So far, only **Claude in VSCode** can talk to your MCP servers — because they use **stdio transport** (stdin/stdout pipes). A browser can't open a pipe.
+
+Browsers speak **HTTP**. So the plan is:
+
+```
+Before (Phase 1):
+  Claude in VSCode ←→ stdio ←→ MCP Server ←→ External API
+
+After (Phase 2):
+  Claude in VSCode ←→ stdio ←→ MCP Server ←→ External API
+  Browser          ←→ HTTP ←→ ↑ same server
+```
+
+Each server will handle **both** transports at once — stdio for Claude, HTTP for the browser. No extra processes, no new dependencies.
+
+---
+
+## DEMO 3: Expand `index.js` — Add HTTP on Port 3001
+
+### What changes
+
+- Extract the weather fetch into a reusable `getWeather(city)` function
+- Add Node's built-in `http` module — **no new npm packages needed**
+- Start an HTTP server on port 3001 alongside the existing MCP stdio server
+
+### Updated `index.js`
+
+```javascript
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
+import http from 'http';        // built-in — no npm install needed
+import { URL } from 'url';      // built-in
+
+const server = new McpServer({ name: 'Weather Service', version: '1.0.0' });
+
+// Shared logic — called by BOTH the MCP tool and the HTTP server
+async function getWeather(city) {
+  const res = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`);
+  const data = await res.json();
+  const current = data.current_condition[0];
+  return (
+    `The weather in ${city} is ${current.weatherDesc[0].value}, ` +
+    `${current.temp_C}°C (feels like ${current.FeelsLikeC}°C), ` +
+    `humidity ${current.humidity}%.`
+  );
+}
+
+// MCP tool — calls the same function
+server.tool(
+  'getWeather',
+  'Get the current weather for a given city',
+  { city: z.string().min(2).describe('Name of the city to get weather for') },
+  async ({ city }) => {
+    const text = await getWeather(city);
+    return { content: [{ type: 'text', text }] };
+  }
+);
+
+// HTTP server on :3001 — for the browser frontend
+http.createServer(async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');   // allow browser file:// requests
+  res.setHeader('Content-Type', 'application/json');
+
+  try {
+    const { pathname, searchParams } = new URL(req.url, 'http://localhost');
+    if (pathname === '/weather') {
+      const city = searchParams.get('city') || '';
+      if (city.length < 2) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'city must be at least 2 characters' }));
+      }
+      const text = await getWeather(city);
+      res.end(JSON.stringify({ text, server: 'Weather Service (MCP · index.js)' }));
+    } else {
+      res.writeHead(404);
+      res.end(JSON.stringify({ error: 'Not found' }));
+    }
+  } catch (err) {
+    res.writeHead(500);
+    res.end(JSON.stringify({ error: err.message }));
+  }
+}).listen(3001, () => {
+  process.stderr.write('HTTP server on :3001\n');
+});
+
+// MCP stdio transport — for Claude in VSCode
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+**Why `process.stderr.write` for the log?** The MCP protocol uses stdout for communication. Writing to stdout here would corrupt the protocol. `stderr` is safe for logs — Claude ignores it.
+
+**Why `Access-Control-Allow-Origin: *`?** When you open `frontend.html` by double-clicking it, the browser treats it as a `file://` URL. Browsers block HTTP requests from `file://` to `localhost` unless the server explicitly allows it with this header.
+
+---
+
+## DEMO 4: Expand `server.py` — Add HTTP on Port 3002
+
+### What changes
+
+- Add Python's built-in `http.server` module — **no pip install needed**
+- Run the HTTP server in a background thread so it doesn't block FastMCP
+- Keep the `@server.tool()` decorator and `predict_nationality` function exactly as-is
+
+### Updated `server.py`
+
+```python
+from mcp.server.fastmcp import FastMCP
+import requests
+import threading
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse, parse_qs
+import sys
+
+server = FastMCP("Nationalize Service")
+
+@server.tool()
+def predict_nationality(name: str) -> dict:
+    """Predict the nationality of a person based on their name."""
+    url = f"https://api.nationalize.io/?name={name}"
+    response = requests.get(url, timeout=15)
+    return response.json()
+
+# HTTP server on :3002 — for the browser frontend
+class NationalityHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass  # silence default access logs
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+
+        try:
+            if parsed.path == "/nationality":
+                name = params.get("name", [""])[0]
+                if not name:
+                    self.wfile.write(json.dumps({"error": "name is required"}).encode())
+                    return
+                result = predict_nationality(name)
+                result["server"] = "Nationalize Service (MCP · server.py)"
+                self.wfile.write(json.dumps(result).encode())
+            else:
+                self.wfile.write(json.dumps({"error": "Not found"}).encode())
+        except Exception as e:
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+def _start_http():
+    HTTPServer(("", 3002), NationalityHandler).serve_forever()
+
+if __name__ == "__main__":
+    t = threading.Thread(target=_start_http, daemon=True)  # daemon=True → dies with main process
+    t.start()
+    print("HTTP server on :3002", file=sys.stderr)
+    server.run()
+```
+
+**Why `threading.Thread`?** `server.run()` blocks the main thread forever (it's waiting for MCP messages). The HTTP server also needs to block. Running them in the same thread would mean only one could run. A background thread lets both run simultaneously.
+
+**Why `daemon=True`?** A daemon thread is automatically killed when the main process exits. Without it, the HTTP server thread would keep the process alive even after FastMCP exits — the script would never fully close.
+
+---
+
+## DEMO 5: Create `frontend.html`
+
+Create a single file `frontend.html` at the **project root**. It needs no build tools — just open it in a browser.
+
+### The structure
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>MCP Demo Frontend</title>
+  <!-- all CSS goes here -->
+</head>
+<body>
+  <!-- Two cards side by side -->
+  <div id="weather-card">
+    <input id="weatherInput" placeholder="Enter city…" />
+    <button onclick="fetchWeather()">Ask</button>
+    <div id="weatherResult"></div>
+  </div>
+
+  <div id="nationality-card">
+    <input id="nameInput" placeholder="Enter a name…" />
+    <button onclick="fetchNationality()">Ask</button>
+    <div id="nationalityResult"></div>
+  </div>
+
+  <script>
+    async function fetchWeather() {
+      const city = document.getElementById('weatherInput').value.trim();
+      const res = await fetch(`http://localhost:3001/weather?city=${encodeURIComponent(city)}`);
+      const data = await res.json();
+      document.getElementById('weatherResult').innerText = data.text;
+      // data.server → "Weather Service (MCP · index.js)" — proof it hit your server
+    }
+
+    async function fetchNationality() {
+      const name = document.getElementById('nameInput').value.trim();
+      const res = await fetch(`http://localhost:3002/nationality?name=${encodeURIComponent(name)}`);
+      const data = await res.json();
+      // data.country → [{country_id: "IL", probability: 0.48}, ...]
+      // data.server  → "Nationalize Service (MCP · server.py)"
+    }
+  </script>
+</body>
+</html>
+```
+
+**Key JavaScript concept — `fetch()`:** The browser's built-in HTTP client. `fetch(url)` returns a Promise. `await` pauses until the response arrives. `.json()` parses the body as JSON.
+
+**Why is `encodeURIComponent()` needed?** City names with spaces or special characters (e.g., "New York", "São Paulo") would break the URL. `encodeURIComponent` converts them to safe URL-encoded strings.
+
+---
+
+## How to Run Phase 2
+
+### Option A — Via VSCode (recommended, zero extra steps)
+
+`mcp.json` already starts both servers. When it does, the HTTP servers on :3001 and :3002 come up automatically — they're part of the same process.
+
+1. Open the project in VSCode with the Claude extension active
+2. Servers start automatically (you'll see them listed in the Claude tools panel)
+3. Double-click `frontend.html` to open it in your browser
+4. Type a city or name → results appear
+
+No separate terminal windows needed.
+
+### Option B — Manual terminals
+
+```powershell
+# Terminal 1
+cd demo1-weather-server
+node index.js
+# → "HTTP server on :3001"
+
+# Terminal 2
+cd demo2-nationalize-server
+venv\Scripts\Activate.ps1
+python server.py
+# → "HTTP server on :3002"
+```
+
+Then open `frontend.html` in your browser.
+
+---
+
+## How to Verify It's Your MCP Server (Not a Direct API Call)
+
+Every response from your servers includes a `server` field:
+
+```json
+{ "text": "The weather in London is ...", "server": "Weather Service (MCP · index.js)" }
+{ "country": [...], "server": "Nationalize Service (MCP · server.py)" }
+```
+
+The frontend displays this as a green badge:
+
+```
+✓ Weather Service (MCP · index.js)
+✓ Nationalize Service (MCP · server.py)
+```
+
+If that badge appears, the request went through **your custom server code** — not directly to the external API. If the servers aren't running, you'll see a "Could not reach server" error instead.
+
+---
+
+## Phase 2 Concepts
+
+| Concept | One-liner |
+|---------|-----------|
+| HTTP alongside stdio | Same server, two transports — each client type uses what it speaks |
+| `http.createServer` (Node) | Built-in HTTP server — no Express needed for simple endpoints |
+| `BaseHTTPRequestHandler` (Python) | Built-in HTTP request handler — no Flask needed |
+| `threading.Thread(daemon=True)` | Runs HTTP server in background without blocking FastMCP |
+| `Access-Control-Allow-Origin: *` | Required CORS header so browsers can call localhost from a `file://` page |
+| `fetch()` (browser JS) | Built-in browser API for making HTTP requests asynchronously |
+| `encodeURIComponent()` | Encodes special characters so they're safe in a URL query string |
+| `data-server` badge | A field injected by the server into its own response — proves the request went through your code |
+
+---
+
+## Full Command Sequence — Phase 2 (from existing Phase 1 setup)
+
+```powershell
+# === Step 1: Update the JavaScript server ===
+# Replace demo1-weather-server/index.js with the Phase 2 version from DEMO 3 above
+# (adds: import http, getWeather() function, http.createServer().listen(3001))
+
+# Test it
+cd demo1-weather-server
+node index.js
+# You should see: "HTTP server on :3001" printed in the terminal
+# Press Ctrl+C to stop, then go back to root
+cd ..
+
+# === Step 2: Update the Python server ===
+# Replace demo2-nationalize-server/server.py with the Phase 2 version from DEMO 4 above
+# (adds: import threading/json/http.server, NationalityHandler class, daemon thread)
+
+# Test it
+cd demo2-nationalize-server
+venv\Scripts\Activate.ps1
+python server.py
+# You should see: "HTTP server on :3002" printed in the terminal
+# Press Ctrl+C to stop
+deactivate
+cd ..
+
+# === Step 3: Create the frontend ===
+# Create frontend.html at the project root
+# (paste the complete HTML from DEMO 5 above, or use the full version from the repo)
+
+# === Step 4: Run everything ===
+
+# Option A — VSCode (recommended)
+# 1. Open project folder in VSCode with Claude extension active
+# 2. Servers start automatically via mcp.json (HTTP on :3001 and :3002 included)
+# 3. Double-click frontend.html to open in browser
+
+# Option B — Manual (two terminals)
+# Terminal 1:
+cd demo1-weather-server
+node index.js                        # keeps running — HTTP on :3001 + MCP stdio
+
+# Terminal 2:
+cd demo2-nationalize-server
+venv\Scripts\Activate.ps1
+python server.py                     # keeps running — HTTP on :3002 + MCP stdio
+
+# Then open frontend.html in your browser (double-click in File Explorer)
+```
+
+---
+
+## Phase 2 Verification
+
+Open `frontend.html` in your browser and confirm:
+- Type **"London"** in the weather card → weather result appears with green badge `✓ Weather Service (MCP · index.js)`
+- Type **"Ronen"** in the nationality card → ranked country list appears with green badge `✓ Nationalize Service (MCP · server.py)`
+- Stop one of the servers → that card shows "Could not reach server" error (proves the frontend is truly connected to your servers, not a fallback)

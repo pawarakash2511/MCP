@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP Demo Frontend</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header span {
+      background: #e94560;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 640px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 18px 24px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-header .icon { font-size: 1.4rem; }
+    .card-header h2 { font-size: 1rem; font-weight: 600; color: #1a1a2e; }
+    .card-header .badge {
+      margin-left: auto;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-js { background: #fff3cd; color: #856404; }
+    .badge-py { background: #d1ecf1; color: #0c5460; }
+
+    .card-body { padding: 20px 24px; }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .input-row input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .input-row input:focus { border-color: #e94560; }
+    .input-row button {
+      padding: 10px 18px;
+      background: #e94560;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .input-row button:hover { background: #c73652; }
+    .input-row button:disabled { background: #aaa; cursor: not-allowed; }
+
+    .result {
+      margin-top: 16px;
+      min-height: 60px;
+    }
+
+    .result-placeholder {
+      color: #bbb;
+      font-size: 0.88rem;
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    .spinner {
+      display: flex;
+      justify-content: center;
+      padding: 16px 0;
+    }
+    .spinner::after {
+      content: "";
+      width: 28px; height: 28px;
+      border: 3px solid #eee;
+      border-top-color: #e94560;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box {
+      background: #fff0f0;
+      border: 1px solid #f5c6c6;
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: #c0392b;
+      font-size: 0.88rem;
+    }
+
+    /* Weather result */
+    .weather-card {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 10px;
+      padding: 18px;
+      color: #fff;
+    }
+    .weather-city {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      opacity: 0.9;
+    }
+    .weather-desc {
+      font-size: 0.95rem;
+      opacity: 0.75;
+      margin-bottom: 14px;
+    }
+    .weather-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .stat {
+      background: rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+    }
+    .stat-value { font-size: 1.15rem; font-weight: 700; }
+    .stat-label { font-size: 0.7rem; opacity: 0.6; margin-top: 2px; text-transform: uppercase; }
+
+    /* Nationality result */
+    .country-list { display: flex; flex-direction: column; gap: 8px; }
+    .country-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .country-flag { font-size: 1.4rem; }
+    .country-name { flex: 1; font-size: 0.9rem; font-weight: 500; color: #333; }
+    .country-prob {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #e94560;
+    }
+    .prob-bar-wrap {
+      width: 80px;
+      height: 6px;
+      background: #eee;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .prob-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #e94560, #ff7597);
+      border-radius: 999px;
+    }
+    .no-results {
+      color: #888;
+      font-size: 0.88rem;
+      text-align: center;
+      padding: 12px 0;
+    }
+
+    .mcp-source {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 10px;
+      font-size: 0.75rem;
+      color: #555;
+      background: #eef6ee;
+      border: 1px solid #b7ddb7;
+      border-radius: 999px;
+      padding: 3px 10px;
+    }
+    .mcp-source::before { content: "✓"; color: #2e7d32; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>MCP Demo Frontend</h1>
+  <span>Live</span>
+</header>
+
+<main>
+
+  <!-- Weather Card -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🌤</span>
+      <h2>Weather</h2>
+      <span class="badge badge-js">JavaScript · :3001</span>
+    </div>
+    <div class="card-body">
+      <div class="input-row">
+        <input id="weatherInput" type="text" placeholder="Enter city name…" />
+        <button id="weatherBtn" onclick="fetchWeather()">Ask</button>
+      </div>
+      <div class="result" id="weatherResult">
+        <p class="result-placeholder">Type a city and click Ask</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nationality Card -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🌍</span>
+      <h2>Nationality</h2>
+      <span class="badge badge-py">Python · :3002</span>
+    </div>
+    <div class="card-body">
+      <div class="input-row">
+        <input id="nameInput" type="text" placeholder="Enter a person's name…" />
+        <button id="nationalityBtn" onclick="fetchNationality()">Ask</button>
+      </div>
+      <div class="result" id="nationalityResult">
+        <p class="result-placeholder">Type a name and click Ask</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // Country code → flag emoji
+  function flagEmoji(code) {
+    return code
+      .toUpperCase()
+      .replace(/./g, c => String.fromCodePoint(0x1F1E6 - 65 + c.charCodeAt(0)));
+  }
+
+  // Country code → readable name (best-effort via Intl API)
+  function countryName(code) {
+    try {
+      return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.toUpperCase());
+    } catch {
+      return code.toUpperCase();
+    }
+  }
+
+  function setLoading(resultEl, btnEl) {
+    resultEl.innerHTML = '<div class="spinner"></div>';
+    btnEl.disabled = true;
+  }
+
+  function clearLoading(btnEl) {
+    btnEl.disabled = false;
+  }
+
+  async function fetchWeather() {
+    const input = document.getElementById('weatherInput');
+    const result = document.getElementById('weatherResult');
+    const btn = document.getElementById('weatherBtn');
+    const city = input.value.trim();
+
+    if (city.length < 2) {
+      result.innerHTML = '<div class="error-box">Please enter a city name (at least 2 characters).</div>';
+      return;
+    }
+
+    setLoading(result, btn);
+    try {
+      const res = await fetch(`http://localhost:3001/weather?city=${encodeURIComponent(city)}`);
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.error);
+
+      // Parse the text response for display
+      const text = data.text;
+      const tempMatch = text.match(/(\d+)°C \(feels like (-?\d+)°C\)/);
+      const humMatch = text.match(/humidity (\d+)%/);
+      const descMatch = text.match(/is (.+?),/);
+
+      result.innerHTML = `
+        <div class="weather-card">
+          <div class="weather-city">${city}</div>
+          <div class="weather-desc">${descMatch ? descMatch[1] : ''}</div>
+          <div class="weather-stats">
+            <div class="stat">
+              <div class="stat-value">${tempMatch ? tempMatch[1] : '--'}°C</div>
+              <div class="stat-label">Temperature</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${tempMatch ? tempMatch[2] : '--'}°C</div>
+              <div class="stat-label">Feels Like</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${humMatch ? humMatch[1] : '--'}%</div>
+              <div class="stat-label">Humidity</div>
+            </div>
+          </div>
+        </div>
+        ${data.server ? `<span class="mcp-source">${data.server}</span>` : ''}`;
+    } catch (err) {
+      result.innerHTML = `<div class="error-box">
+        <strong>Could not reach the weather server.</strong><br>
+        Make sure <code>node index.js</code> is running in <code>demo1-weather-server/</code>.<br>
+        <small>${err.message}</small>
+      </div>`;
+    } finally {
+      clearLoading(btn);
+    }
+  }
+
+  async function fetchNationality() {
+    const input = document.getElementById('nameInput');
+    const result = document.getElementById('nationalityResult');
+    const btn = document.getElementById('nationalityBtn');
+    const name = input.value.trim();
+
+    if (!name) {
+      result.innerHTML = '<div class="error-box">Please enter a name.</div>';
+      return;
+    }
+
+    setLoading(result, btn);
+    try {
+      const res = await fetch(`http://localhost:3002/nationality?name=${encodeURIComponent(name)}`);
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.error);
+
+      const countries = data.country || [];
+      if (countries.length === 0) {
+        result.innerHTML = '<p class="no-results">No nationality predictions found.</p>';
+        return;
+      }
+
+      const rows = countries.map(c => {
+        const prob = Math.round(c.probability * 100);
+        return `
+          <div class="country-row">
+            <span class="country-flag">${flagEmoji(c.country_id)}</span>
+            <span class="country-name">${countryName(c.country_id)}</span>
+            <div class="prob-bar-wrap"><div class="prob-bar" style="width:${prob}%"></div></div>
+            <span class="country-prob">${prob}%</span>
+          </div>`;
+      }).join('');
+
+      result.innerHTML = `
+        <div class="country-list">${rows}</div>
+        ${data.server ? `<span class="mcp-source">${data.server}</span>` : ''}`;
+    } catch (err) {
+      result.innerHTML = `<div class="error-box">
+        <strong>Could not reach the nationality server.</strong><br>
+        Make sure <code>python server.py</code> is running in <code>demo2-nationalize-server/</code>.<br>
+        <small>${err.message}</small>
+      </div>`;
+    } finally {
+      clearLoading(btn);
+    }
+  }
+
+  // Allow Enter key to submit
+  document.getElementById('weatherInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') fetchWeather();
+  });
+  document.getElementById('nameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') fetchNationality();
+  });
+</script>
+
+</body>
+</html>
