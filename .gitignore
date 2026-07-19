@@ -5,3 +5,6 @@ node_modules/
 venv/
 __pycache__/
 *.pyc
+
+# Local VSCode workspace scaffolding unrelated to this project
+.vscode/MCP.code-workspace

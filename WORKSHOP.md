@@ -30,7 +30,15 @@ MCP/
 ├── demo2-nationalize-server/       ← Python server
 │   ├── venv/                       ← virtual environment (do NOT commit to git)
 │   └── server.py
+├── demo3-boi-exchange-server/      ← JS bridge (added in Phase 2, see "DEMO 4B" below)
+│   ├── node_modules/               ← installed JS packages (do NOT commit to git)
+│   ├── package.json
+│   └── index.js                    ← wraps the pre-built npm package @skills-il/boi-exchange-mcp
 └── WORKSHOP.md                     ← This file
+
+(In Phase 1, "DEMO 3 (Bonus)" below registers boi-exchange directly via
+ raw `npx` — no local folder needed yet. The demo3-boi-exchange-server/
+ folder above only appears once Phase 2's "DEMO 4B" bridges it to HTTP.)
 ```
 
 ---
@@ -265,6 +273,56 @@ Again, it will wait silently — that's correct.
 
 ---
 
+## DEMO 3 (Bonus): Plug in a Pre-Built MCP Server (npx)
+
+Demos 1 and 2 were **built from scratch** — you wrote every line of `index.js` and `server.py` yourself. But most of the time, someone else has already published an MCP server for the API you want. This demo shows how to consume one of those with **zero custom code**.
+
+### The package: `@skills-il/boi-exchange-mcp`
+
+An MCP server for official **Bank of Israel** exchange rates — daily representative rates ("sha'ar yatzig") for 30+ currencies against the Israeli Shekel (ILS), backed by the BOI's public SDMX API.
+
+| Tool | Purpose |
+|------|---------|
+| `get_exchange_rate` | Latest representative rate for a currency vs. ILS |
+| `get_historical_rates` | Daily rates across a date range |
+| `list_currencies` | All supported currency codes |
+| `get_rate_change` | Absolute/percentage change between two dates |
+| `convert_currency` | Convert an amount between ILS and another currency |
+
+**No API key needed** — the BOI API is public.
+
+### Step 1: Register it in `mcp.json` — that's it
+
+No folder, no `npm install`, no `pip install`. Just add an entry to `.vscode/mcp.json`:
+
+```json
+"boi-exchange": {
+  "type": "stdio",
+  "command": "npx",
+  "args": ["-y", "@skills-il/boi-exchange-mcp"]
+}
+```
+
+**Why `npx -y`?** `npx` downloads a package from the npm registry and runs it immediately, without a permanent local install. `-y` auto-confirms the "ok to install this package?" prompt so it doesn't hang waiting for input when VSCode spawns it. The first run downloads the package (cached by npm for next time); subsequent runs start instantly.
+
+### Step 2: Reload VSCode
+
+`Ctrl+Shift+P` → `Developer: Reload Window`. VSCode re-reads `mcp.json`, and `npx` fetches/starts `@skills-il/boi-exchange-mcp` alongside your two hand-built servers.
+
+### For now, this one is stdio-only
+
+Demos 1 and 2 later grow an HTTP endpoint (see Phase 2 below) so `frontend.html` can call them from a browser. `boi-exchange` is a **third-party package** — you don't own its source, so you can't add an HTTP server inside it the way you did for `index.js`/`server.py`. Right now it only works as an MCP tool inside Claude/VSCode (stdio), not from the browser chatbot.
+
+**Phase 2 fixes this** with a small *bridge* process (`demo3-boi-exchange-server/index.js`) that spawns this same package internally and adds an HTTP door for the browser — see "DEMO 4B: Bridge `boi-exchange` to HTTP" below.
+
+### Test it
+
+Ask Claude in VSCode:
+- *"What's today's exchange rate for USD to ILS?"* → should trigger `get_exchange_rate`
+- *"Convert 100 USD to ILS"* → should trigger `convert_currency`
+
+---
+
 ## Connecting to VSCode / Claude
 
 ### The `.vscode/mcp.json` file
@@ -283,6 +341,11 @@ This file tells VSCode (and Claude inside it) where your MCP servers are:
       "type": "stdio",
       "command": "${workspaceFolder}/demo2-nationalize-server/venv/Scripts/python",
       "args": ["${workspaceFolder}/demo2-nationalize-server/server.py"]
+    },
+    "boi-exchange": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@skills-il/boi-exchange-mcp"]
     }
   }
 }
@@ -296,7 +359,7 @@ This file tells VSCode (and Claude inside it) where your MCP servers are:
 - `args` — arguments to pass to the program
 - `${workspaceFolder}` — VSCode variable that resolves to your project root
 
-When Claude is active in VSCode, it reads this file, spawns both server processes, and can now call `getWeather` and `predict_nationality` as tools.
+When Claude is active in VSCode, it reads this file, spawns all three server processes, and can now call `getWeather`, `predict_nationality`, and the BOI exchange-rate tools.
 
 ---
 
@@ -356,10 +419,14 @@ python server.py                     # test it — waits silently = working
 deactivate                           # exit venv when done
 cd ..
 
+# === BOI Exchange Server (pre-built, no local folder) ===
+# Nothing to create — just add the "boi-exchange" entry to .vscode/mcp.json
+# npx downloads and runs @skills-il/boi-exchange-mcp on demand
+
 # === VSCode Config ===
 mkdir .vscode
-# Create .vscode/mcp.json (paste content from section above)
-# Reload VSCode window → Claude can now use both tools
+# Create .vscode/mcp.json with all three server entries (paste content from section above)
+# Reload VSCode window → Claude can now use all three tools
 ```
 
 ---
@@ -369,8 +436,10 @@ mkdir .vscode
 After setup, open Claude in VSCode and ask:
 - *"What's the weather in New York?"* → should trigger `getWeather`
 - *"What nationality is the name Ronen?"* → should trigger `predict_nationality`
+- *"What's today's exchange rate for USD to ILS?"* → should trigger `get_exchange_rate`
+- *"Convert 100 USD to ILS"* → should trigger `convert_currency`
 
-Both should return real data from the external APIs.
+All four should return real data from the external APIs.
 
 ---
 
@@ -549,6 +618,135 @@ if __name__ == "__main__":
 
 ---
 
+## DEMO 4B: Bridge `boi-exchange` to HTTP (`demo3-boi-exchange-server`)
+
+`boi-exchange` is a **third-party package** — you can't paste an `http.createServer` call into someone else's npm package. Instead, build a small **bridge**: a new server that spawns the real package internally (as its own MCP client) and re-exposes it two ways — stdio for Claude, HTTP for the browser.
+
+### Step 1: Create the folder and install the SDK
+
+```powershell
+mkdir demo3-boi-exchange-server
+cd demo3-boi-exchange-server
+npm init -y
+# Add "type": "module" to package.json, same as demo1
+npm install @modelcontextprotocol/sdk
+```
+
+### Step 2: Create `index.js`
+
+```javascript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import http from 'http';
+import { URL } from 'url';
+
+// 1 - Spawn the real package as an internal MCP client
+const upstreamTransport = new StdioClientTransport({
+  command: 'npx',
+  args: ['-y', '@skills-il/boi-exchange-mcp'],
+});
+const upstream = new Client({ name: 'boi-exchange-bridge-client', version: '1.0.0' });
+await upstream.connect(upstreamTransport);
+
+const { tools } = await upstream.listTools();
+const toolsByName = new Map(tools.map((t) => [t.name, t]));
+
+// 2 - Passthrough MCP server: same tools/schemas, forwarded verbatim to Claude
+const server = new Server(
+  { name: 'BOI Exchange Bridge', version: '1.0.0' },
+  { capabilities: { tools: {} } }
+);
+server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
+server.setRequestHandler(CallToolRequestSchema, async (request) => upstream.callTool(request.params));
+
+// Coerce HTTP query params into a tool's argument types using its OWN JSON Schema
+function coerceArgs(tool, searchParams) {
+  const props = tool.inputSchema?.properties || {};
+  const args = {};
+  for (const [key, schema] of Object.entries(props)) {
+    if (!searchParams.has(key)) continue;
+    const raw = searchParams.get(key);
+    args[key] = schema.type === 'number' || schema.type === 'integer' ? Number(raw) : raw;
+  }
+  return args;
+}
+
+// 3 - HTTP server on :3003 for the browser frontend
+http.createServer(async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+  try {
+    const { pathname, searchParams } = new URL(req.url, 'http://localhost');
+
+    if (pathname === '/tools') {
+      return res.end(JSON.stringify({ tools }));
+    }
+
+    if (pathname === '/exchange') {
+      const toolName = searchParams.get('tool') || '';
+      const tool = toolsByName.get(toolName);
+      if (!tool) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: `unknown tool "${toolName}"` }));
+      }
+      const args = coerceArgs(tool, searchParams);
+      const result = await upstream.callTool({ name: toolName, arguments: args });
+      const raw = result.content?.[0]?.text ?? '';
+      let payload;
+      try { payload = JSON.parse(raw); } catch { payload = { text: raw }; }
+      payload.server = 'BOI Exchange Service (MCP · demo3-boi-exchange-server/index.js)';
+      return res.end(JSON.stringify(payload));
+    }
+
+    res.writeHead(404);
+    res.end(JSON.stringify({ error: 'Not found' }));
+  } catch (err) {
+    res.writeHead(500);
+    res.end(JSON.stringify({ error: err.message }));
+  }
+}).listen(3003, () => process.stderr.write('HTTP server on :3003\n'));
+
+// 4 - Transport for Claude/VSCode
+const serverTransport = new StdioServerTransport();
+await server.connect(serverTransport);
+```
+
+**Key concepts:**
+- **`Server` (low-level), not `McpServer`** — `McpServer` wants a Zod schema per tool, but we already have the upstream's raw JSON Schema and don't want to hand-translate 5 schemas (or re-translate them every time the package updates). The low-level `Server` lets us register `ListToolsRequestSchema`/`CallToolRequestSchema` handlers directly and forward requests verbatim — a **transparent passthrough**.
+- **One generic `/exchange?tool=<name>&...` route, not 5 hardcoded ones** — the bridge reads each tool's own `inputSchema.properties` to know which query params to expect and whether to parse them as numbers. This automatically supports all 5 tools (and any the package adds later) with one route.
+- **The bridge is both an MCP client AND an MCP server** — client to the internal `npx` child (upstream), server to Claude/VSCode (via its own stdio) — plus a plain HTTP server for the browser. Three roles, one process.
+
+### Step 3: Point `mcp.json` at the bridge instead of raw `npx`
+
+```json
+"boi-exchange": {
+  "type": "stdio",
+  "command": "node",
+  "args": ["${workspaceFolder}/demo3-boi-exchange-server/index.js"]
+}
+```
+
+Claude's experience doesn't change — same tool names, same schemas — it's just talking to the bridge now instead of the package directly, and the bridge happens to also serve HTTP.
+
+### Step 4: Test it
+
+```powershell
+cd demo3-boi-exchange-server
+node index.js
+# → "HTTP server on :3003"
+```
+
+In another terminal:
+```powershell
+curl "http://localhost:3003/exchange?tool=get_exchange_rate&currency=USD"
+```
+You should get back real Bank of Israel data with a `server` field proving it went through your bridge.
+
+---
+
 ## DEMO 5: Create `frontend.html`
 
 Create a single file `frontend.html` at the **project root**. It needs no build tools — just open it in a browser.
@@ -607,12 +805,12 @@ Create a single file `frontend.html` at the **project root**. It needs no build 
 
 ### Option A — Via VSCode (recommended, zero extra steps)
 
-`mcp.json` already starts both servers. When it does, the HTTP servers on :3001 and :3002 come up automatically — they're part of the same process.
+`mcp.json` already starts all three servers. When it does, the HTTP servers on :3001, :3002, and :3003 come up automatically — they're part of the same processes.
 
 1. Open the project in VSCode with the Claude extension active
 2. Servers start automatically (you'll see them listed in the Claude tools panel)
 3. Double-click `frontend.html` to open it in your browser
-4. Type a city or name → results appear
+4. Type a city or name → results appear (the `boi-exchange` bridge isn't wired into the two-card frontend yet — that happens in Phase 3's chatbot rewrite)
 
 No separate terminal windows needed.
 
@@ -629,6 +827,11 @@ cd demo2-nationalize-server
 venv\Scripts\Activate.ps1
 python server.py
 # → "HTTP server on :3002"
+
+# Terminal 3
+cd demo3-boi-exchange-server
+node index.js
+# → "HTTP server on :3003"
 ```
 
 Then open `frontend.html` in your browser.
@@ -697,18 +900,22 @@ python server.py
 deactivate
 cd ..
 
-# === Step 3: Create the frontend ===
+# === Step 3: Build the boi-exchange bridge ===
+# Create demo3-boi-exchange-server/ (see DEMO 4B above)
+# Update mcp.json's "boi-exchange" entry to point at it instead of raw npx
+
+# === Step 4: Create the frontend ===
 # Create frontend.html at the project root
 # (paste the complete HTML from DEMO 5 above, or use the full version from the repo)
 
-# === Step 4: Run everything ===
+# === Step 5: Run everything ===
 
 # Option A — VSCode (recommended)
 # 1. Open project folder in VSCode with Claude extension active
-# 2. Servers start automatically via mcp.json (HTTP on :3001 and :3002 included)
+# 2. Servers start automatically via mcp.json (HTTP on :3001, :3002, :3003 included)
 # 3. Double-click frontend.html to open in browser
 
-# Option B — Manual (two terminals)
+# Option B — Manual (three terminals)
 # Terminal 1:
 cd demo1-weather-server
 node index.js                        # keeps running — HTTP on :3001 + MCP stdio
@@ -717,6 +924,10 @@ node index.js                        # keeps running — HTTP on :3001 + MCP std
 cd demo2-nationalize-server
 venv\Scripts\Activate.ps1
 python server.py                     # keeps running — HTTP on :3002 + MCP stdio
+
+# Terminal 3:
+cd demo3-boi-exchange-server
+node index.js                        # keeps running — HTTP on :3003 + MCP stdio (bridged)
 
 # Then open frontend.html in your browser (double-click in File Explorer)
 ```
@@ -729,6 +940,12 @@ Open `frontend.html` in your browser and confirm:
 - Type **"London"** in the weather card → weather result appears with green badge `✓ Weather Service (MCP · index.js)`
 - Type **"Ronen"** in the nationality card → ranked country list appears with green badge `✓ Nationalize Service (MCP · server.py)`
 - Stop one of the servers → that card shows "Could not reach server" error (proves the frontend is truly connected to your servers, not a fallback)
+
+Also confirm the new bridge independently (it isn't wired into this two-card frontend yet, but it should already be live):
+```powershell
+curl "http://localhost:3003/exchange?tool=get_exchange_rate&currency=USD"
+```
+→ should return real Bank of Israel data with `"server": "BOI Exchange Service (MCP · demo3-boi-exchange-server/index.js)"`.
 
 ---
 
@@ -834,19 +1051,28 @@ Add the `parseIntent` function:
 
 ```javascript
 async function parseIntent(userMessage) {
+  const today = new Date().toISOString().slice(0, 10); // resolves "today"/"last week" etc.
+
   const completion = await grok.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: [
       {
         role: 'system',
-        content: `You are an intent classifier for a chatbot that handles weather and nationality queries.
+        content: `You are an intent classifier for a chatbot that handles weather, nationality, and currency-exchange queries.
+Today's date is ${today} (YYYY-MM-DD) — use it to resolve relative dates like "today", "last week", "past 7 days".
 Given the user message, respond with ONLY valid JSON — no markdown, no explanation, no extra text.
-Format: {"type":"weather"|"nationality"|"unknown","entity":"<extracted value or empty string>"}
+Format: {"type":"weather"|"nationality"|"exchange"|"unknown","entity":"<extracted value or empty string>","tool":"<tool name or empty string>","args":{}}
 Rules:
-- "weather"     → user asking about weather, temperature, climate, forecast of a city/place
-- "nationality" → user asking about nationality, origin, country of a person's name
+- "weather"     → user asking about weather, temperature, climate, forecast of a city/place. entity = city name.
+- "nationality" → user asking about nationality, origin, country of a person's name. entity = person name.
+- "exchange"    → user asking about currency exchange rates, converting money, historical rates, or supported currencies. Pick exactly one "tool" and fill "args" with ONLY that tool's fields (3-letter ISO 4217 codes, YYYY-MM-DD dates):
+  - "get_exchange_rate"    → args: {"currency": "<code>"}
+  - "convert_currency"     → args: {"amount": <number>, "fromCurrency": "<code>", "toCurrency": "<code>"} — one of them must be "ILS"
+  - "get_historical_rates" → args: {"currency": "<code>", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD"}
+  - "get_rate_change"      → args: {"currency": "<code>", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD"}
+  - "list_currencies"      → args: {}
 - "unknown"     → anything else
-- entity: extract only the city name or person name, nothing else`,
+- entity is only used for weather/nationality; tool/args are only used for exchange`,
       },
       { role: 'user', content: userMessage },
     ],
@@ -856,6 +1082,8 @@ Rules:
   return JSON.parse(raw);
 }
 ```
+
+**Why inject `today` into the prompt?** The LLM has no built-in sense of "now" — without telling it today's date, it can't turn "last week" or "the past 7 days" into concrete `YYYY-MM-DD` values for `get_historical_rates`/`get_rate_change`.
 
 Add the `/parse` route inside the existing HTTP server (alongside `/weather`):
 
@@ -873,7 +1101,7 @@ if (pathname === '/parse') {
 
 **Why `temperature: 0`?** We want deterministic output — always the same JSON structure for the same input. Higher temperatures add randomness, which would cause unpredictable JSON that might fail to parse.
 
-**Why one `/parse` endpoint for both weather AND nationality?** The LLM classifies the intent and extracts the entity. The frontend then routes to `:3001/weather` or `:3002/nationality` based on the result. One classifier, two data sources — clean separation of concerns.
+**Why one `/parse` endpoint for weather, nationality, AND exchange?** The LLM classifies the intent and extracts the entity (or tool+args). The frontend then routes to `:3001/weather`, `:3002/nationality`, or `:3003/exchange` based on the result. One classifier, three data sources — clean separation of concerns.
 
 ### Step 3: Set the API key in `mcp.json`
 
@@ -894,6 +1122,11 @@ Add an `env` block to the weather server entry so VSCode passes the key automati
       "type": "stdio",
       "command": "${workspaceFolder}/demo2-nationalize-server/venv/Scripts/python",
       "args": ["${workspaceFolder}/demo2-nationalize-server/server.py"]
+    },
+    "boi-exchange": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/demo3-boi-exchange-server/index.js"]
     }
   }
 }
@@ -929,17 +1162,30 @@ async function handleSend() {
   addMessage('user', text);           // show user bubble
   addTyping();                        // show loading dots
 
-  const { type, entity } = await parseIntent(text);  // Groq classifies
+  const { type, entity, tool, args } = await parseIntent(text);  // Groq classifies
 
   if (type === 'weather') {
-    const data = await getWeather(entity);      // your MCP :3001
+    const data = await getWeather(entity);           // your MCP :3001
     addMessage('bot', renderWeather(data));
   } else if (type === 'nationality') {
-    const data = await getNationality(entity);  // your MCP :3002
+    const data = await getNationality(entity);       // your MCP :3002
     addMessage('bot', renderNationality(entity, data));
+  } else if (type === 'exchange') {
+    const data = await getExchange(tool, args || {}); // your MCP :3003 (bridge)
+    addMessage('bot', renderExchange(tool, data));
   } else {
     addMessage('bot', 'Sorry, MCP is not configured for that information.');
   }
+}
+```
+
+Add the fetch call for the bridge — same shape as `getWeather`/`getNationality`, just forwarding whatever `tool`/`args` the classifier picked:
+
+```javascript
+async function getExchange(tool, args) {
+  const params = new URLSearchParams({ tool, ...args });
+  const res = await fetch(`http://localhost:3003/exchange?${params.toString()}`);
+  return res.json();
 }
 ```
 
@@ -960,6 +1206,16 @@ function renderNationality(name, data) {
   );
   return `The name ${name} is ${parts[0]}, followed by ${parts.slice(1).join(', ')}.`;
 }
+
+// Exchange → one sentence per tool, since each returns a different shape
+function renderExchange(tool, data) {
+  if (tool === 'get_exchange_rate') return `The latest rate is ${data.unit} (as of ${data.date}).`;
+  if (tool === 'convert_currency')  return `${data.from.amount} ${data.from.currency} = ${data.to.amount} ${data.to.currency} (${data.rateDescription}).`;
+  if (tool === 'list_currencies')   return `Supported currencies: ${data.currencies.join(', ')}.`;
+  if (tool === 'get_rate_change')   return `${data.currency}: ${data.direction} (${data.percentChange}% from ${data.startDate} to ${data.endDate}).`;
+  if (tool === 'get_historical_rates') return data.rates.map(r => `${r.date}: ${r.rate}`).join('<br>');
+  return data.text || 'No exchange data available.';
+}
 ```
 
 ---
@@ -978,7 +1234,7 @@ Paste your key into `.vscode/mcp.json` under the `weather` server's `env` block 
 
 **Via VSCode (recommended):**
 - `Ctrl+Shift+P` → `Developer: Reload Window`
-- VSCode re-reads `mcp.json` and respawns both servers with the env var set
+- VSCode re-reads `mcp.json` and respawns all three servers with the env var set
 
 **Via manual terminal:**
 ```powershell
@@ -993,6 +1249,11 @@ cd demo2-nationalize-server
 venv\Scripts\Activate.ps1
 python server.py
 # → "HTTP server on :3002"
+
+# Terminal 3
+cd demo3-boi-exchange-server
+node index.js
+# → "HTTP server on :3003"
 ```
 
 ### Step 4: Open the chatbot
@@ -1015,6 +1276,7 @@ cd ..
 # === Step 3: Rewrite frontend.html ===
 # Replace two-card layout with chatbot UI
 # Replace regex parseIntent() with async fetch to /parse
+# Add getExchange()/renderExchange() and the "exchange" branch in handleSend()
 # (see DEMO 6 and DEMO 7 Step 4 above)
 
 # === Step 4: Add API key to mcp.json ===
@@ -1031,6 +1293,10 @@ node index.js                          # → HTTP server on :3001
 cd demo2-nationalize-server
 venv\Scripts\Activate.ps1
 python server.py                       # → HTTP server on :3002
+
+# (new terminal)
+cd demo3-boi-exchange-server
+node index.js                          # → HTTP server on :3003
 
 # Open frontend.html in browser
 ```
@@ -1050,6 +1316,8 @@ python server.py                       # → HTTP server on :3002
 | `env` in `mcp.json` | Inject environment variables into a server process spawned by VSCode |
 | `AbortController` + timeout | Cancel a hanging `fetch()` after N seconds — prevents the UI from freezing |
 | Separation of concerns | LLM understands language; MCP servers own the data — each layer does one job |
+| Bridging a third-party MCP server | When you don't own a tool's source, spawn it internally and relay it — same "one process, two transports" shape, one extra hop |
+| Generic tool-schema-driven routing | Reading a tool's own JSON Schema to build its HTTP route generically avoids hardcoding param names per tool |
 
 ---
 
@@ -1065,6 +1333,11 @@ Open `frontend.html` and test these inputs — all should return answers without
 | `amit name nationality` | Nationality of Amit from `:3002` |
 | `is it raining in Mumbai?` | Weather for Mumbai from `:3001` |
 | `where is Sara from?` | Nationality of Sara from `:3002` |
+| `what's the USD exchange rate today?` | Latest USD→ILS rate from `:3003` (`get_exchange_rate`) |
+| `convert 100 USD to ILS` | Conversion result from `:3003` (`convert_currency`) |
+| `what currencies do you support?` | Currency list from `:3003` (`list_currencies`) |
+| `how has USD changed over the past week?` | Rate change from `:3003` (`get_rate_change`) |
+| `show me USD rates for the last 5 days` | Daily rate series from `:3003` (`get_historical_rates`) |
 | `tell me a joke` | "Sorry, MCP is not configured for that information." |
 
-Every weather and nationality answer ends with a green `✓` MCP source badge proving the data came from your server, not the LLM.
+Every weather, nationality, and exchange answer ends with a green `✓` MCP source badge proving the data came from your server (or bridge), not the LLM.

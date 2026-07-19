@@ -1,0 +1,16 @@
+{
+  "name": "demo3-boi-exchange-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Bridges the third-party @skills-il/boi-exchange-mcp package (stdio-only) to HTTP on :3003 for the browser frontend, while still passing it through to Claude/VSCode over stdio."
+}

@@ -20,6 +20,7 @@ There are three separate worlds in this project. Each speaks a different languag
 │  WORLD 2: Your Custom MCP Servers (your code)                   │
 │  index.js  (Node.js)   →  getWeather tool + /parse endpoint     │
 │  server.py (Python)    →  predict_nationality tool              │
+│  demo3/index.js (Node) →  BOI exchange BRIDGE (see note below)  │
 │  Lives on your machine. Executes your business logic.           │
 │  Speaks: MCP over stdio (to Claude) + HTTP (to browser)         │
 └──────────┬──────────────────────────────────┬───────────────────┘
@@ -29,10 +30,15 @@ There are three separate worlds in this project. Each speaks a different languag
 │  WORLD 3A: External  │           │  WORLD 3B: Browser           │
 │  APIs                │           │  frontend.html (chatbot UI)  │
 │  wttr.in             │           │  Speaks: HTTP to localhost   │
-│  api.nationalize.io  │           └──────────────────────────────┘
-│  api.groq.com        │
+│  api.nationalize.io  │           │  (:3001, :3002, :3003)       │
+│  api.groq.com        │           └──────────────────────────────┘
+│  BOI SDMX API        │
+│  (via demo3's        │
+│   internal npx child)│
 └──────────────────────┘
 ```
+
+> **Note on `demo3-boi-exchange-server`:** the actual exchange-rate logic isn't "your code" — it lives in the third-party npm package `@skills-il/boi-exchange-mcp`, which only speaks MCP over stdio and has no HTTP server of its own. `demo3-boi-exchange-server/index.js` is a **bridge**: it spawns that package as its own internal child process (acting as an MCP *client* to it), then does double duty like `index.js`/`server.py` — it's simultaneously an MCP *server* to Claude (a transparent passthrough: it forwards `ListTools`/`CallTool` requests straight to the child and returns the result verbatim, so Claude sees the exact same tools as talking to the package directly) and an HTTP server on :3003 for the browser. So there's an extra hop compared to demo1/demo2 (bridge → internal npx child → BOI API) but the WORLD 1/2/3B shape is otherwise identical.
 
 ---
 
@@ -501,12 +507,13 @@ If the servers are not running, the `fetch()` in the browser fails immediately w
 
 | File | What it is | What it does |
 |------|-----------|-------------|
-| `.vscode/mcp.json` | VSCode config | Spawns both servers; injects `GROK_API_KEY` env var into the weather server |
+| `.vscode/mcp.json` | VSCode config | Spawns all three servers; injects `GROK_API_KEY` env var into the weather server |
 | `demo1-weather-server/index.js` | JS MCP server | Registers `getWeather` tool; `/parse` endpoint (Groq intent); HTTP on :3001; stdio |
 | `demo1-weather-server/package.json` | Node config | `"type":"module"` enables ES imports; lists MCP SDK + Zod + openai deps |
 | `demo2-nationalize-server/server.py` | Python MCP server | Registers `predict_nationality` tool; runs HTTP on :3002 in a thread |
 | `demo2-nationalize-server/venv/` | Python venv | Isolated Python environment with `mcp` and `requests` installed |
-| `frontend.html` | Browser chatbot | Single chat window; calls `/parse` → routes to `:3001/weather` or `:3002/nationality` |
+| `demo3-boi-exchange-server/index.js` | JS bridge (not hand-built logic) | Spawns `npx @skills-il/boi-exchange-mcp` as an internal MCP client; relays its exact tools to Claude over stdio; HTTP on :3003 |
+| `frontend.html` | Browser chatbot | Single chat window; calls `/parse` → routes to `:3001/weather`, `:3002/nationality`, or `:3003/exchange` |
 
 ---
 
@@ -519,10 +526,13 @@ If the servers are not running, the `fetch()` in the browser fails immediately w
 | VSCode + Claude extension | Your machine | You |
 | `node index.js` | Your machine | VSCode via mcp.json (or manually) |
 | `python server.py` | Your machine | VSCode via mcp.json (or manually) |
+| `demo3-boi-exchange-server/index.js` | Your machine | VSCode via mcp.json (or manually) |
+| `npx @skills-il/boi-exchange-mcp` (internal child) | Your machine | Spawned by `demo3-boi-exchange-server/index.js` |
 | `frontend.html` JS | Your browser | You (open the file) |
 | wttr.in API | wttr.in servers | Called by your index.js |
 | api.nationalize.io | nationalize.io servers | Called by your server.py |
 | api.groq.com | Groq servers | Called by your index.js `/parse` handler |
+| Bank of Israel SDMX API | boi.gov.il servers | Called by the internal `npx` child, via demo3's bridge |
 
 ---
 

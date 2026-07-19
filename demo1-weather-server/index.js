@@ -49,19 +49,29 @@ server.tool(
 
 /* Grok intent parser — understands any natural language query */
 async function parseIntent(userMessage) {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, for resolving "today"/"last week" etc.
+
   const completion = await grok.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: [
       {
         role: 'system',
-        content: `You are an intent classifier for a chatbot that handles weather and nationality queries.
+        content: `You are an intent classifier for a chatbot that handles weather, nationality, and currency-exchange queries.
+Today's date is ${today} (YYYY-MM-DD) — use it to resolve relative dates like "today", "last week", "past 7 days".
 Given the user message, respond with ONLY valid JSON — no markdown, no explanation, no extra text.
-Format: {"type":"weather"|"nationality"|"unknown","entity":"<extracted value or empty string>"}
+Format: {"type":"weather"|"nationality"|"exchange"|"unknown","entity":"<extracted value or empty string>","tool":"<tool name or empty string>","args":{}}
 Rules:
-- "weather"     → user is asking about weather, temperature, climate, forecast, rain, humidity of a city/place
-- "nationality" → user is asking about nationality, origin, country, ethnicity of a person's name
+- "weather"     → user is asking about weather, temperature, climate, forecast, rain, humidity of a city/place. entity = city name.
+- "nationality" → user is asking about nationality, origin, country, ethnicity of a person's name. entity = person name.
+- "exchange"    → user is asking about currency exchange rates, converting money, historical rates, or which currencies are supported (Bank of Israel / ILS data). Pick exactly one "tool" and fill "args" with ONLY that tool's fields, using 3-letter ISO 4217 currency codes (e.g. USD, EUR, GBP) and YYYY-MM-DD dates:
+  - "get_exchange_rate"    → args: {"currency": "<code>"} — latest rate for a currency vs ILS
+  - "convert_currency"     → args: {"amount": <number>, "fromCurrency": "<code>", "toCurrency": "<code>"} — one of fromCurrency/toCurrency must be "ILS"
+  - "get_historical_rates" → args: {"currency": "<code>", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD"} — daily rates over a range
+  - "get_rate_change"      → args: {"currency": "<code>", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD"} — change between two dates
+  - "list_currencies"      → args: {} — no fields needed
 - "unknown"     → anything else
-- entity: extract only the city name (for weather) or person name (for nationality), nothing else`,
+- entity is only used for weather/nationality; leave it "" for exchange and unknown.
+- tool/args are only used for exchange; leave tool "" and args {} for weather/nationality/unknown.`,
       },
       { role: 'user', content: userMessage },
     ],

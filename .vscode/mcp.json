@@ -12,6 +12,11 @@
       "type": "stdio",
       "command": "${workspaceFolder}/demo2-nationalize-server/venv/Scripts/python",
       "args": ["${workspaceFolder}/demo2-nationalize-server/server.py"]
+    },
+    "boi-exchange": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/demo3-boi-exchange-server/index.js"]
     }
   }
 }

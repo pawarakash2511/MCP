@@ -54,6 +54,7 @@
     }
     .pill-js { background: #fff3cd; color: #856404; }
     .pill-py { background: #d1ecf1; color: #0c5460; }
+    .pill-node { background: #e3d9f7; color: #4b2e83; }
 
     /* ── Chat window ── */
     #chat {
@@ -182,11 +183,12 @@
   <div class="header-avatar">🤖</div>
   <div class="header-info">
     <h1>MCP Chatbot</h1>
-    <p>Weather · Nationality</p>
+    <p>Weather · Nationality · Exchange Rates</p>
   </div>
   <div class="server-pills">
     <span class="pill pill-js">JS · :3001</span>
     <span class="pill pill-py">Py · :3002</span>
+    <span class="pill pill-node">Node · :3003</span>
   </div>
   <span class="live-badge">Live</span>
 </header>
@@ -196,7 +198,7 @@
 
 <!-- Input bar -->
 <div class="input-bar">
-  <input id="userInput" type="text" placeholder="Ask about weather or nationality…" autocomplete="off" />
+  <input id="userInput" type="text" placeholder="Ask about weather, nationality, or currency exchange…" autocomplete="off" />
   <button id="sendBtn" onclick="handleSend()">Send ➤</button>
 </div>
 
@@ -215,7 +217,7 @@
 
   /* ─────────────────────────────────────────────
      Intent parser — calls Grok LLM via /parse endpoint on the MCP server
-     Returns { type: 'weather'|'nationality'|'unknown', entity: string }
+     Returns { type: 'weather'|'nationality'|'exchange'|'unknown', entity, tool, args }
   ───────────────────────────────────────────── */
   async function parseIntent(message) {
     const controller = new AbortController();
@@ -283,6 +285,12 @@
     return res.json();
   }
 
+  async function getExchange(tool, args) {
+    const params = new URLSearchParams({ tool, ...args });
+    const res = await fetch(`http://localhost:3003/exchange?${params.toString()}`);
+    return res.json();
+  }
+
   /* ─────────────────────────────────────────────
      Render results into bubble HTML strings
   ───────────────────────────────────────────── */
@@ -312,6 +320,39 @@
     return sentence + badge;
   }
 
+  function renderExchange(tool, data) {
+    const badge = data.server ? `<br><span class="mcp-source">${escHtml(data.server)}</span>` : '';
+    let sentence;
+
+    if (tool === 'get_exchange_rate') {
+      sentence = `The latest Bank of Israel rate is <strong>${escHtml(data.unit)}</strong> (as of ${escHtml(data.date)}).`;
+
+    } else if (tool === 'convert_currency') {
+      sentence = `<strong>${data.from.amount} ${escHtml(data.from.currency)}</strong> = ` +
+        `<strong>${data.to.amount} ${escHtml(data.to.currency)}</strong> ` +
+        `(rate: ${escHtml(data.rateDescription)}, as of ${escHtml(data.rateDate)}).`;
+
+    } else if (tool === 'list_currencies') {
+      const codes = (data.currencies || []).join(', ');
+      sentence = `The Bank of Israel publishes rates for ${data.count} currencies: ${escHtml(codes)}.`;
+
+    } else if (tool === 'get_rate_change') {
+      const sign = data.absoluteChange > 0 ? '+' : '';
+      sentence = `${escHtml(data.currency)} went from ${data.startRate} ILS (${escHtml(data.startDate)}) ` +
+        `to ${data.endRate} ILS (${escHtml(data.endDate)}) — a change of ${sign}${data.absoluteChange} ` +
+        `(${sign}${data.percentChange}%). ${escHtml(data.direction)}.`;
+
+    } else if (tool === 'get_historical_rates') {
+      const rows = (data.rates || []).map(r => `${escHtml(r.date)}: ${r.rate}`).join('<br>');
+      sentence = `${escHtml(data.currency)} rates from ${escHtml(data.startDate)} to ${escHtml(data.endDate)}:<br>${rows}`;
+
+    } else {
+      sentence = data.text ? escHtml(data.text) : 'No exchange data available.';
+    }
+
+    return sentence + badge;
+  }
+
   function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
@@ -335,7 +376,7 @@
     addTyping();
 
     // Parse intent via Grok LLM
-    const { type, entity } = await parseIntent(text);
+    const { type, entity, tool, args } = await parseIntent(text);
 
     try {
       if (type === 'weather') {
@@ -356,11 +397,20 @@
           addMessage('bot', renderNationality(entity, data));
         }
 
+      } else if (type === 'exchange') {
+        const data = await getExchange(tool, args || {});
+        removeTyping();
+        if (data.error) {
+          addMessage('bot', `<strong>Could not fetch exchange data.</strong><br><small>${escHtml(data.error)}</small>`, 'error');
+        } else {
+          addMessage('bot', renderExchange(tool, data));
+        }
+
       } else {
         // Out of context
         removeTyping();
         addMessage('bot',
-          `Sorry, MCP is not configured for that information. I can only assist with weather and nationality queries.`,
+          `Sorry, MCP is not configured for that information. I can only assist with weather, nationality, and currency exchange queries.`,
           'hint'
         );
       }
